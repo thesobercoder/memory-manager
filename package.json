@@ -6,6 +6,7 @@
     "effect": "^3.16.10"
   },
   "devDependencies": {
+    "@effect/language-service": "^0.23.3",
     "@types/bun": "latest",
     "prettier": "^3.6.2",
     "syncpack": "^13.0.4"
