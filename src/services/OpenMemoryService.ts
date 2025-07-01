@@ -13,9 +13,9 @@ const make = Effect.gen(function*() {
   const bearerToken = yield* Config.string("OPENMEMORY_BEARER_TOKEN");
   const baseUrl = "https://api.openmemory.dev/api/v1";
 
-  const filterMemories = (request: OpenMemoryFilterRequest = {}): Effect.Effect<OpenMemoryResponse, Error> =>
+  const filterMemories = (request: OpenMemoryFilterRequest = {}) =>
     Effect.gen(function*() {
-      const defaultRequest: OpenMemoryFilterRequest = {
+      const defaultRequest = {
         page: 1,
         size: 25,
         sort_column: "created_at",

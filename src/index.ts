@@ -22,6 +22,4 @@ const AppLayer = Layer.mergeAll(
   OpenMemoryServiceLive
 );
 
-BunRuntime.runMain(
-  program.pipe(Effect.provide(AppLayer))
-);
+program.pipe(Effect.provide(AppLayer), BunRuntime.runMain);
