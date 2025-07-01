@@ -9,7 +9,7 @@ export interface OpenMemoryItem {
   metadata_: Record<string, unknown>;
 }
 
-export interface OpenMemoryResponse {
+export interface OpenMemoryFilterResponse {
   items: OpenMemoryItem[];
   total: number;
   page: number;

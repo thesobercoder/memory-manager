@@ -1,9 +1,9 @@
 import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest } from "@effect/platform";
 import { Config, Context, Effect, Layer } from "effect";
-import type { OpenMemoryFilterRequest, OpenMemoryResponse } from "../types.js";
+import type { OpenMemoryFilterRequest, OpenMemoryFilterResponse } from "../types.js";
 
 export interface OpenMemoryService {
-  readonly filterMemories: (request?: OpenMemoryFilterRequest) => Effect.Effect<OpenMemoryResponse, Error>;
+  readonly filterMemories: (request?: OpenMemoryFilterRequest) => Effect.Effect<OpenMemoryFilterResponse, Error>;
 }
 
 export const OpenMemoryService = Context.GenericTag<OpenMemoryService>("@services/OpenMemoryService");
@@ -33,7 +33,7 @@ const make = Effect.gen(function*() {
       const response = yield* httpClient.execute(httpRequest);
       const data = yield* response.json;
 
-      return data as OpenMemoryResponse;
+      return data as OpenMemoryFilterResponse;
     });
 
   return OpenMemoryService.of({
