@@ -1,12 +1,39 @@
+import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest } from "@effect/platform";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
-import { Config, Effect } from "effect";
+import { Config, Effect, Layer } from "effect";
 
-// Define a program that loads HOST and PORT configuration
 const program = Effect.gen(function*() {
-  const host = yield* Config.string("HOST"); // Read as a string
-  const port = yield* Config.number("PORT"); // Read as a number
+  const bearerToken = yield* Config.string("OPENMEMORY_BEARER_TOKEN");
 
-  yield* Effect.log(`Application started: ${host}:${port.toString()}`);
+  yield* Effect.log(`Fetching Data from OpenMemory:`);
+
+  const httpClient = yield* HttpClient.HttpClient;
+  const url = "https://api.openmemory.dev/api/v1/memories/filter";
+
+  const request = HttpClientRequest.post(url, {
+    body: HttpBody.unsafeJson(
+      {
+        "page": 1,
+        "size": 25,
+        "sort_column": "created_at",
+        "sort_direction": "desc"
+      }
+    )
+  }).pipe(
+    HttpClientRequest.setHeader("Authorization", `Bearer ${bearerToken}`),
+    HttpClientRequest.setHeader("Content-Type", "application/json")
+  );
+
+  const response = yield* httpClient.execute(request);
+  const data = yield* response.json;
+
+  yield* Effect.log(`Retrieved memories: ${JSON.stringify(data)}`);
+
+  return data;
 });
 
-BunRuntime.runMain(program.pipe(Effect.provide(BunContext.layer)));
+const AppLayer = Layer.mergeAll(BunContext.layer, FetchHttpClient.layer);
+
+BunRuntime.runMain(
+  program.pipe(Effect.provide(AppLayer))
+);
