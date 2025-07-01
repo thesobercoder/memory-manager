@@ -1,0 +1,22 @@
+{
+  "name": "effect-app",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.87.1",
+    "@effect/platform-bun": "^0.72.3",
+    "effect": "^3.16.10"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target bun --minify",
+    "start": "bun run build && bun run dist/index.js",
+    "dev": "bun run src/index.ts"
+  }
+}
