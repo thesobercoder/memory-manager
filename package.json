@@ -6,10 +6,14 @@
     "effect": "^3.16.10"
   },
   "devDependencies": {
+    "@effect/eslint-plugin": "^0.3.2",
     "@effect/language-service": "^0.23.3",
+    "@eslint/js": "^9.30.0",
     "@types/bun": "latest",
-    "prettier": "^3.6.2",
-    "syncpack": "^13.0.4"
+    "dprint": "^0.50.1",
+    "eslint": "^9.30.0",
+    "syncpack": "^13.0.4",
+    "typescript-eslint": "^8.35.1"
   },
   "module": "index.ts",
   "peerDependencies": {
@@ -19,7 +23,9 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun --minify",
     "dev": "bun run src/index.ts",
-    "format": "syncpack format && prettier --write .",
+    "format": "syncpack format && dprint fmt",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "start": "bun run build && bun run dist/index.js"
   },
   "type": "module"
