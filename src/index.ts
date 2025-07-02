@@ -1,3 +1,4 @@
+import { FetchHttpClient } from "@effect/platform";
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { Effect, Layer, Predicate } from "effect";
 import { OpenMemory } from "./services/OpenMemory.js";
@@ -36,7 +37,7 @@ const program = Effect.gen(function*() {
 
 const AppLayer = Layer.mergeAll(
   BunContext.layer,
-  OpenMemory.Default
+  OpenMemory.Default.pipe(Layer.provide(FetchHttpClient.layer))
 );
 
 program.pipe(Effect.provide(AppLayer), BunRuntime.runMain);

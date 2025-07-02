@@ -1,4 +1,4 @@
-import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Config, Context, Effect, Layer } from "effect";
 import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, OpenMemoryServiceError } from "../types.js";
 
@@ -48,5 +48,5 @@ export class OpenMemory extends Context.Tag("OpenMemoryService")<
 
       return { filterMemories };
     })
-  ).pipe(Layer.provide(FetchHttpClient.layer));
+  );
 }
