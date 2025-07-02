@@ -9,13 +9,13 @@ const program = Effect.gen(function*() {
 
   const openMemoryService = yield* OpenMemory;
 
-  const result = yield* openMemoryService.filterMemories({
-    page: 1,
-    size: 25,
-    sort_column: "created_at",
-    sort_direction: "desc"
-  }).pipe(
+  const result = yield* openMemoryService.filterMemories().pipe(
     Effect.catchTags({
+      HttpBodyError: (error) =>
+        Effect.gen(function*() {
+          yield* Effect.logError(`OpenMemory API Body Error: ${error.reason}`);
+          return OpenMemoryFilterResponse.empty();
+        }),
       RequestError: (error) =>
         Effect.gen(function*() {
           yield* Effect.logError(`OpenMemory API Request Error: ${error.reason}`);

@@ -23,8 +23,8 @@ export class OpenMemoryFilterResponse extends Schema.Class<OpenMemoryFilterRespo
     return new OpenMemoryFilterResponse({
       items: [],
       total: 0,
-      page: 1,
-      size: 25,
+      page: 0,
+      size: 0,
       pages: 0
     });
   }
@@ -35,4 +35,13 @@ export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterReques
   size: Schema.Number,
   sort_column: Schema.String,
   sort_direction: Schema.Union(Schema.Literal("asc"), Schema.Literal("desc"))
-}) {}
+}) {
+  static default() {
+    return new OpenMemoryFilterRequest({
+      page: 1,
+      size: 25,
+      sort_column: "created_at",
+      sort_direction: "desc"
+    });
+  }
+}
