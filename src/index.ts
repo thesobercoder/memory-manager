@@ -30,11 +30,6 @@ const program = Effect.gen(function*() {
         Effect.gen(function*() {
           yield* Effect.logError(`OpenMemory API Parse Error: ${error.message}`);
           return OpenMemoryFilterResponse.empty();
-        }),
-      ConfigError: (error) =>
-        Effect.gen(function*() {
-          yield* Effect.logError(`OpenMemory API Config Error: ${error.message}`);
-          return OpenMemoryFilterResponse.empty();
         })
     })
   );

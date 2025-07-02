@@ -1,5 +1,5 @@
 import type { HttpClientError } from "@effect/platform";
-import { ConfigError, ParseResult, Schema } from "effect";
+import { ParseResult, Schema } from "effect";
 
 export class OpenMemoryFilterResponse extends Schema.Class<OpenMemoryFilterResponse>("OpenMemoryFilterResponse")({
   items: Schema.Array(Schema.Struct({
@@ -41,5 +41,4 @@ export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterReques
 export type OpenMemoryServiceError =
   | HttpClientError.RequestError
   | HttpClientError.ResponseError
-  | ParseResult.ParseError
-  | ConfigError.ConfigError;
+  | ParseResult.ParseError;
