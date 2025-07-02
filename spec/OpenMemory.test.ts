@@ -26,6 +26,22 @@ const createErrorResponse = (status: number): HttpClientError.HttpClientError =>
     reason: "StatusCode"
   });
 
+// Create request error (network failures, timeouts, DNS issues)
+const createRequestError = (): HttpClientError.HttpClientError =>
+  new HttpClientError.RequestError({
+    request: {} as HttpClientRequest.HttpClientRequest,
+    reason: "Transport",
+    cause: new Error("Network timeout")
+  });
+
+// Create body error (body parsing issues) - use different error type
+const createBodyError = (): HttpClientError.HttpClientError =>
+  new HttpClientError.RequestError({
+    request: {} as HttpClientRequest.HttpClientRequest,
+    reason: "Encode",
+    cause: new Error("Body parsing failed")
+  });
+
 // Helper to create test layers with different mock behaviors
 const createTestLayer = (
   mockBehavior: (
@@ -121,13 +137,11 @@ test("should demonstrate error recovery patterns work", async () => {
     // Simulate a failing service call
     const failingCall = Effect.fail(mockError);
 
-    // Apply the same error recovery pattern as in index.ts
+    // Apply the same error recovery pattern as in index.ts (without noisy logging)
     const result = yield* failingCall.pipe(
-      Effect.catchAll((error) => {
-        return Effect.gen(function*() {
-          yield* Effect.logError(`API Error: ${error.message}`);
-          return OpenMemoryFilterResponse.empty();
-        });
+      Effect.catchAll(() => {
+        // In tests, we skip logging to reduce noise - just test the recovery pattern
+        return Effect.succeed(OpenMemoryFilterResponse.empty());
       })
     );
 
@@ -171,6 +185,98 @@ test("should handle HTTP errors (500, 403) correctly", async () => {
     const hasError = (exit.cause._tag === "Fail" && exit.cause.error) ||
       (exit.cause._tag === "Die" && exit.cause.defect);
     expect(hasError).toBeTruthy();
+  }
+});
+
+// Test 5: RequestError Handling - NETWORK FAILURES
+test("should handle RequestError (network timeouts, DNS failures)", async () => {
+  const testLayer = createTestLayer(() => Effect.fail(createRequestError()));
+
+  const testEffect = Effect.gen(function*() {
+    const openMemoryService = yield* OpenMemory;
+    return yield* openMemoryService.filterMemories();
+  });
+
+  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
+
+  expect(Exit.isFailure(exit)).toBe(true);
+
+  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+    // Should be specifically a RequestError
+    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
+
+    // Check if it's a RequestError by checking the _tag property
+    const error = exit.cause.error as { _tag: string; };
+    expect(error._tag).toBe("RequestError");
+  }
+});
+
+// Test 6: Encoding Error Handling - ENCODING/BODY PROCESSING FAILURES
+test("should handle encoding errors (body processing failures)", async () => {
+  const testLayer = createTestLayer(() => Effect.fail(createBodyError()));
+
+  const testEffect = Effect.gen(function*() {
+    const openMemoryService = yield* OpenMemory;
+    return yield* openMemoryService.filterMemories();
+  });
+
+  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
+
+  expect(Exit.isFailure(exit)).toBe(true);
+
+  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+    // Should be specifically a RequestError with Encode reason
+    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
+
+    // Check if it's a RequestError by checking the _tag property
+    const error = exit.cause.error as { _tag: string; };
+    expect(error._tag).toBe("RequestError");
+  }
+});
+
+// Test 7: Authentication Error - 401/403 RESPONSES
+test("should handle authentication errors (401/403)", async () => {
+  const testLayer = createTestLayer(() => Effect.fail(createErrorResponse(401)));
+
+  const testEffect = Effect.gen(function*() {
+    const openMemoryService = yield* OpenMemory;
+    return yield* openMemoryService.filterMemories();
+  });
+
+  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
+
+  expect(Exit.isFailure(exit)).toBe(true);
+
+  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
+
+    // Check if it's a ResponseError by checking the _tag property
+    const error = exit.cause.error as { _tag: string; response: { status: number; }; };
+    expect(error._tag).toBe("ResponseError");
+    expect(error.response.status).toBe(401);
+  }
+});
+
+// Test 8: Rate Limiting Error - 429 RESPONSES
+test("should handle rate limiting errors (429)", async () => {
+  const testLayer = createTestLayer(() => Effect.fail(createErrorResponse(429)));
+
+  const testEffect = Effect.gen(function*() {
+    const openMemoryService = yield* OpenMemory;
+    return yield* openMemoryService.filterMemories();
+  });
+
+  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
+
+  expect(Exit.isFailure(exit)).toBe(true);
+
+  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
+
+    // Check if it's a ResponseError by checking the _tag property
+    const error = exit.cause.error as { _tag: string; response: { status: number; }; };
+    expect(error._tag).toBe("ResponseError");
+    expect(error.response.status).toBe(429);
   }
 });
 
