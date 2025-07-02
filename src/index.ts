@@ -1,20 +1,37 @@
 import { BunContext, BunRuntime } from "@effect/platform-bun";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Predicate } from "effect";
 import { OpenMemoryService } from "./services/OpenMemoryService.js";
+import { OpenMemoryFilterResponse } from "./types.js";
 
 const program = Effect.gen(function*() {
-  yield* Effect.log("Fetching Data from OpenMemory:");
+  yield* Effect.log("Fetching Data from OpenMemory...");
 
   const openMemoryService = yield* OpenMemoryService;
 
-  const data = yield* openMemoryService.filterMemories({
+  const result = yield* openMemoryService.filterMemories({
     page: 1,
     size: 25,
     sort_column: "created_at",
     sort_direction: "desc"
-  });
+  }).pipe(
+    Effect.catchTag("OpenMemoryServiceError", (error) =>
+      Effect.gen(function*() {
+        yield* Effect.logError(`Failed to fetch memories: ${error.message}`);
+        if (Predicate.hasProperty(error, "cause")) {
+          yield* Effect.logError(`Cause: ${JSON.stringify(error.cause, null, 2)}`);
+        }
 
-  yield* Effect.log(`Retrieved ${data.total} total memories (page ${data.page}/${data.pages})`);
+        return new OpenMemoryFilterResponse({
+          items: [],
+          total: 0,
+          page: 1,
+          size: 25,
+          pages: 0
+        });
+      }))
+  );
+
+  yield* Effect.log(`Retrieved ${result.total} total memories (page ${result.page}/${result.pages})`);
 });
 
 const AppLayer = Layer.mergeAll(
