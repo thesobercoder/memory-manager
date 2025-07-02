@@ -1,25 +1,28 @@
-export interface OpenMemoryItem {
-  id: string;
-  content: string;
-  created_at: number;
-  state: string;
-  app_id: string;
-  app_name: string;
-  categories: string[];
-  metadata_: Record<string, unknown>;
-}
+import { Schema } from "effect";
 
-export interface OpenMemoryFilterResponse {
-  items: OpenMemoryItem[];
-  total: number;
-  page: number;
-  size: number;
-  pages: number;
-}
+export class OpenMemoryFilterResponse extends Schema.Class<OpenMemoryFilterResponse>("OpenMemoryFilterResponse")({
+  items: Schema.Array(Schema.Struct({
+    id: Schema.String,
+    content: Schema.String,
+    created_at: Schema.Number,
+    state: Schema.String,
+    app_id: Schema.String,
+    app_name: Schema.String,
+    categories: Schema.Array(Schema.String),
+    metadata_: Schema.Record({
+      key: Schema.String,
+      value: Schema.Unknown
+    })
+  })),
+  total: Schema.Number,
+  page: Schema.Number,
+  size: Schema.Number,
+  pages: Schema.Number
+}) {}
 
-export interface OpenMemoryFilterRequest {
-  page?: number;
-  size?: number;
-  sort_column?: string;
-  sort_direction?: "asc" | "desc";
-}
+export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterRequest>("OpenMemoryFilterRequest")({
+  page: Schema.Number,
+  size: Schema.Number,
+  sort_column: Schema.String,
+  sort_direction: Schema.Union(Schema.Literal("asc"), Schema.Literal("desc"))
+}) {}

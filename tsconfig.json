@@ -25,6 +25,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
+    "exactOptionalPropertyTypes": true,
 
     // Language services
     "plugins": [

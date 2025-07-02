@@ -1,6 +1,6 @@
-import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest } from "@effect/platform";
+import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Config, Context, Effect, Layer } from "effect";
-import type { OpenMemoryFilterRequest, OpenMemoryFilterResponse } from "../types.js";
+import { OpenMemoryFilterRequest, OpenMemoryFilterResponse } from "../types.js";
 
 export interface OpenMemoryService {
   readonly filterMemories: (request?: OpenMemoryFilterRequest) => Effect.Effect<OpenMemoryFilterResponse, Error>;
@@ -13,27 +13,27 @@ const make = Effect.gen(function*() {
   const bearerToken = yield* Config.string("OPENMEMORY_BEARER_TOKEN");
   const baseUrl = "https://api.openmemory.dev/api/v1";
 
-  const filterMemories = (request: OpenMemoryFilterRequest = {}) =>
+  const filterMemories = (request?: OpenMemoryFilterRequest) =>
     Effect.gen(function*() {
-      const defaultRequest = {
+      const defaultRequest = new OpenMemoryFilterRequest({
         page: 1,
         size: 25,
         sort_column: "created_at",
-        sort_direction: "desc",
-        ...request
-      };
+        sort_direction: "desc"
+      });
 
       const httpRequest = HttpClientRequest.post(`${baseUrl}/memories/filter`, {
-        body: HttpBody.unsafeJson(defaultRequest)
+        body: HttpBody.unsafeJson(request || defaultRequest)
       }).pipe(
         HttpClientRequest.setHeader("Authorization", `Bearer ${bearerToken}`),
         HttpClientRequest.setHeader("Content-Type", "application/json")
       );
 
-      const response = yield* httpClient.execute(httpRequest);
-      const data = yield* response.json;
+      const data = yield* httpClient.execute(httpRequest).pipe(
+        Effect.flatMap(HttpClientResponse.schemaBodyJson(OpenMemoryFilterResponse))
+      );
 
-      return data as OpenMemoryFilterResponse;
+      return data;
     });
 
   return OpenMemoryService.of({
