@@ -2,8 +2,8 @@ import { FetchHttpClient, HttpBody, HttpClient, HttpClientRequest, HttpClientRes
 import { Config, Context, Effect, Layer } from "effect";
 import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, OpenMemoryServiceError } from "../types.js";
 
-export class OpenMemoryService extends Context.Tag("OpenMemoryService")<
-  OpenMemoryService,
+export class OpenMemory extends Context.Tag("OpenMemoryService")<
+  OpenMemory,
   {
     readonly filterMemories: (
       request?: OpenMemoryFilterRequest
@@ -11,7 +11,7 @@ export class OpenMemoryService extends Context.Tag("OpenMemoryService")<
   }
 >() {
   static Default = Layer.effect(
-    OpenMemoryService,
+    OpenMemory,
     Effect.gen(function*() {
       const httpClient = yield* HttpClient.HttpClient;
       const bearerToken = yield* Config.string("OPENMEMORY_BEARER_TOKEN");

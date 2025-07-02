@@ -1,12 +1,12 @@
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { Effect, Layer, Predicate } from "effect";
-import { OpenMemoryService } from "./services/OpenMemoryService.js";
+import { OpenMemory } from "./services/OpenMemory.js";
 import { OpenMemoryFilterResponse } from "./types.js";
 
 const program = Effect.gen(function*() {
   yield* Effect.log("Fetching Data from OpenMemory...");
 
-  const openMemoryService = yield* OpenMemoryService;
+  const openMemoryService = yield* OpenMemory;
 
   const result = yield* openMemoryService.filterMemories({
     page: 1,
@@ -36,7 +36,7 @@ const program = Effect.gen(function*() {
 
 const AppLayer = Layer.mergeAll(
   BunContext.layer,
-  OpenMemoryService.Default
+  OpenMemory.Default
 );
 
 program.pipe(Effect.provide(AppLayer), BunRuntime.runMain);
