@@ -1,6 +1,6 @@
 import { BunContext, BunRuntime } from "@effect/platform-bun";
 import { Effect, Layer } from "effect";
-import { OpenMemoryService, OpenMemoryServiceLive } from "./services/OpenMemoryService.js";
+import { OpenMemoryService } from "./services/OpenMemoryService.js";
 
 const program = Effect.gen(function*() {
   yield* Effect.log("Fetching Data from OpenMemory:");
@@ -19,7 +19,7 @@ const program = Effect.gen(function*() {
 
 const AppLayer = Layer.mergeAll(
   BunContext.layer,
-  OpenMemoryServiceLive
+  OpenMemoryService.Default
 );
 
 program.pipe(Effect.provide(AppLayer), BunRuntime.runMain);

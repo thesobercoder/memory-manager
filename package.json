@@ -23,9 +23,8 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun --minify",
     "dev": "bun run src/index.ts",
-    "format": "syncpack format && dprint fmt",
+    "format": "syncpack format && dprint fmt && eslint . --fix",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
     "start": "bun run build && bun run dist/index.js",
     "typecheck": "tsc --noEmit --skipLibCheck"
   },

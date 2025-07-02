@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Data, Schema } from "effect";
 
 export class OpenMemoryFilterResponse extends Schema.Class<OpenMemoryFilterResponse>("OpenMemoryFilterResponse")({
   items: Schema.Array(Schema.Struct({
@@ -26,3 +26,8 @@ export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterReques
   sort_column: Schema.String,
   sort_direction: Schema.Union(Schema.Literal("asc"), Schema.Literal("desc"))
 }) {}
+
+export class OpenMemoryServiceError extends Data.TaggedError("OpenMemoryServiceError")<{
+  readonly cause?: unknown;
+  readonly message?: string;
+}> {}
