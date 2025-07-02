@@ -16,7 +16,7 @@
 - `bun run lint` - Run ESLint
 - `bun run format` - **UPDATED**: `syncpack format && dprint fmt && eslint . --fix`
   - Formats package.json dependencies
-  - Formats TypeScript, JSON, and Markdown files  
+  - Formats TypeScript, JSON, and Markdown files
   - Auto-fixes ESLint issues
 - `bun run typecheck` - TypeScript type checking with --noEmit
 
@@ -27,6 +27,7 @@
 ## Environment Requirements
 
 Create `.env` file with:
+
 ```bash
 OPENMEMORY_BEARER_TOKEN=your-token-here
 ```
@@ -34,7 +35,7 @@ OPENMEMORY_BEARER_TOKEN=your-token-here
 ## System Commands (macOS)
 
 - `git` - Version control
-- `ls` - List files  
+- `ls` - List files
 - `cd` - Change directory
 - `grep` - Search text
 - `find` - Find files

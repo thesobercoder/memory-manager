@@ -13,10 +13,11 @@ const program = Effect.gen(function*() {
   // Handle with catchTags for comprehensive error handling
   const safeResult = yield* result.pipe(
     Effect.catchTags({
-      ParseError: (error) => Effect.gen(function*() {
-        yield* Effect.logError(`Parse Error: ${error.message}`);
-        return EmptyResponse.empty();
-      })
+      ParseError: (error) =>
+        Effect.gen(function*() {
+          yield* Effect.logError(`Parse Error: ${error.message}`);
+          return EmptyResponse.empty();
+        })
     })
   );
 });
@@ -26,7 +27,7 @@ const program = Effect.gen(function*() {
 
 ```typescript
 export class ApiResponse extends Schema.Class<ApiResponse>("ApiResponse")({
-  items: Schema.Array(Schema.Struct({ /* fields */ })),
+  items: Schema.Array(Schema.Struct({/* fields */})),
   total: Schema.Number,
   page: Schema.Number
 }) {
@@ -41,18 +42,19 @@ export class ApiResponse extends Schema.Class<ApiResponse>("ApiResponse")({
 ```typescript
 export class MyService extends Context.Tag("MyService")<
   MyService,
-  { readonly method: () => Effect<Result, Error, never> }
+  { readonly method: () => Effect<Result, Error, never>; }
 >() {
   static Default = Layer.effect(
     MyService,
     Effect.gen(function*() {
       const httpClient = yield* HttpClient.HttpClient;
       const config = yield* Config.redacted("TOKEN");
-      
-      const method = () => Effect.gen(function*() {
-        // Implementation
-      });
-      
+
+      const method = () =>
+        Effect.gen(function*() {
+          // Implementation
+        });
+
       return { method };
     })
   );
@@ -63,10 +65,10 @@ export class MyService extends Context.Tag("MyService")<
 
 ```typescript
 // For sensitive data
-const token = yield* Config.redacted("BEARER_TOKEN");
-// For regular config  
-const host = yield* Config.string("HOST");
-const port = yield* Config.number("PORT");
+const token = yield * Config.redacted("BEARER_TOKEN");
+// For regular config
+const host = yield * Config.string("HOST");
+const port = yield * Config.number("PORT");
 ```
 
 ### Layer Composition (Current Pattern)
@@ -85,24 +87,28 @@ program.pipe(Effect.provide(AppLayer), BunRuntime.runMain);
 ### Comprehensive Error Handling
 
 ```typescript
-const result = yield* apiCall.pipe(
+const result = yield * apiCall.pipe(
   Effect.catchTags({
-    HttpBodyError: (error) => Effect.gen(function*() {
-      yield* Effect.logError(`Body Error: ${error.reason}`);
-      return DefaultResponse.empty();
-    }),
-    RequestError: (error) => Effect.gen(function*() {
-      yield* Effect.logError(`Request Error: ${error.reason}`);
-      return DefaultResponse.empty();
-    }),
-    ResponseError: (error) => Effect.gen(function*() {
-      yield* Effect.logError(`Response Error: ${error.reason}`);
-      return DefaultResponse.empty();
-    }),
-    ParseError: (error) => Effect.gen(function*() {
-      yield* Effect.logError(`Parse Error: ${error.message}`);
-      return DefaultResponse.empty();
-    })
+    HttpBodyError: (error) =>
+      Effect.gen(function*() {
+        yield* Effect.logError(`Body Error: ${error.reason}`);
+        return DefaultResponse.empty();
+      }),
+    RequestError: (error) =>
+      Effect.gen(function*() {
+        yield* Effect.logError(`Request Error: ${error.reason}`);
+        return DefaultResponse.empty();
+      }),
+    ResponseError: (error) =>
+      Effect.gen(function*() {
+        yield* Effect.logError(`Response Error: ${error.reason}`);
+        return DefaultResponse.empty();
+      }),
+    ParseError: (error) =>
+      Effect.gen(function*() {
+        yield* Effect.logError(`Parse Error: ${error.message}`);
+        return DefaultResponse.empty();
+      })
   })
 );
 ```
@@ -110,11 +116,13 @@ const result = yield* apiCall.pipe(
 ## Security Best Practices
 
 ### Token Management
+
 - Use `Config.redacted()` for sensitive credentials
 - Store tokens in environment variables
 - Never log or expose redacted values
 
 ### HTTP Requests
+
 ```typescript
 const request = HttpClientRequest.post(url).pipe(
   HttpClientRequest.bearerToken(bearerToken), // Secure token handling
@@ -133,7 +141,7 @@ const request = HttpClientRequest.post(url).pipe(
 ## Common Operations
 
 - `Effect.log()` / `Effect.logError()` - Structured logging
-- `Effect.gen()` - Generator-based composition  
+- `Effect.gen()` - Generator-based composition
 - `Config.redacted()` / `Config.string()` - Secure configuration
 - `BunRuntime.runMain()` - Main program execution
 - `Schema.Class` - Runtime type validation

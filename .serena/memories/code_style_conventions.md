@@ -29,9 +29,10 @@
 ## Effect-TS Patterns (Current Standards)
 
 ### Schema Definitions
+
 ```typescript
 export class ApiResponse extends Schema.Class<ApiResponse>("ApiResponse")({
-  items: Schema.Array(Schema.Struct({ /* fields */ })),
+  items: Schema.Array(Schema.Struct({/* fields */})),
   total: Schema.Number
 }) {
   static empty() {
@@ -41,26 +42,29 @@ export class ApiResponse extends Schema.Class<ApiResponse>("ApiResponse")({
 ```
 
 ### Service Pattern
+
 ```typescript
 export class MyService extends Context.Tag("MyService")<
   MyService,
-  { readonly method: () => Effect<Result, Error, never> }
+  { readonly method: () => Effect<Result, Error, never>; }
 >() {
   static Default = Layer.effect(MyService, Effect.gen(/* implementation */));
 }
 ```
 
 ### Error Handling
+
 ```typescript
-const result = yield* operation.pipe(
+const result = yield * operation.pipe(
   Effect.catchTags({
     ParseError: (error) => Effect.gen(/* handle and log */),
-    RequestError: (error) => Effect.gen(/* handle and log */)
+    RequestError: (error) => Effect.gen() /* handle and log */
   })
 );
 ```
 
 ### Configuration
+
 - Use `Config.redacted()` for sensitive data
 - Use `Config.string()` / `Config.number()` for regular config
 - Store credentials in environment variables

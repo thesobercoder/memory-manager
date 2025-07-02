@@ -2,7 +2,7 @@
 
 ## Root Directory
 
-- `src/` - Source code directory  
+- `src/` - Source code directory
 - `dist/` - Build output (generated)
 - `node_modules/` - Dependencies (generated)
 
@@ -19,6 +19,7 @@
 ## Source Code (`src/`)
 
 Current structure:
+
 - `index.ts` - Main program with Effect-TS setup and OpenMemory integration
 - `types.ts` - Schema.Class definitions for OpenMemory API types
 - `services/` - Service layer directory
@@ -27,7 +28,7 @@ Current structure:
 ## Configuration Files
 
 - **TypeScript**: Modern ESNext target with strict mode
-- **ESLint**: Effect-TS plugin with custom rules  
+- **ESLint**: Effect-TS plugin with custom rules
 - **dprint**: Code formatter with 2-space indentation
 - **Bun**: Runtime and package manager configuration
 

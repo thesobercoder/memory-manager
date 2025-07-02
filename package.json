@@ -26,6 +26,7 @@
     "format": "syncpack format && dprint fmt && eslint . --fix",
     "lint": "eslint .",
     "start": "bun run build && bun run dist/index.js",
+    "test": "bun test",
     "typecheck": "tsc --noEmit --skipLibCheck --project ."
   },
   "type": "module"

@@ -24,7 +24,7 @@ export class OpenMemory extends Context.Tag("OpenMemoryService")<
 ### Schema-Based Types (`src/types.ts`)
 
 - **OpenMemoryFilterResponse**: Schema.Class with runtime validation
-- **OpenMemoryFilterRequest**: Schema.Class with default values  
+- **OpenMemoryFilterRequest**: Schema.Class with default values
 - Static factory methods: `.empty()` and `.default()`
 
 ### Main Program (`src/index.ts`)
@@ -51,19 +51,22 @@ const AppLayer = Layer.mergeAll(
 ## Key Technical Features
 
 ### Security & Reliability
+
 - ✅ `Config.redacted()` for secure token management
 - ✅ Comprehensive error handling prevents crashes
 - ✅ Graceful fallback to empty responses on failures
 - ✅ Schema validation ensures type safety at runtime
 
 ### Modern Effect-TS Patterns
+
 - ✅ Context.Tag service pattern
-- ✅ Layer.effect for service implementation  
+- ✅ Layer.effect for service implementation
 - ✅ Effect.catchTags for typed error handling
 - ✅ Schema.Class for runtime type validation
 - ✅ Layer composition with dependency injection
 
 ### Production Features
+
 - ✅ Structured logging throughout request lifecycle
 - ✅ Bearer token authentication with OpenMemory API
 - ✅ JSON request/response handling
@@ -72,7 +75,7 @@ const AppLayer = Layer.mergeAll(
 ## Verification Results
 
 - ✅ **No runtime errors**: Application starts and runs successfully
-- ✅ **Schema validation**: Runtime type checking prevents data issues  
+- ✅ **Schema validation**: Runtime type checking prevents data issues
 - ✅ **Error resilience**: Handles all API failure scenarios gracefully
 - ✅ **No lint errors**: Code passes all quality checks
 - ✅ **Production ready**: Minified builds, secure token handling
@@ -93,6 +96,7 @@ OPENMEMORY_BEARER_TOKEN=your-actual-token
 ## Architecture Evolution
 
 This represents a significant evolution from the initial implementation:
+
 - **Before**: Basic HTTP calls with manual error handling
 - **Now**: Schema-validated, resilient service with comprehensive error recovery
 - **Patterns**: Modern Effect-TS service patterns throughout
