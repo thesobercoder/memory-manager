@@ -1,51 +1,78 @@
-# Task Completion Checklist
+# Task Completion Checklist - Current State
 
 When completing any coding task, run these commands in order:
 
-## 1. Formatting
+## 1. Formatting & Linting (Combined)
 
 ```bash
 bun run format
 ```
 
-This runs:
-
+**Updated command now includes:**
 - `syncpack format` - Formats package.json dependencies
-- `dprint fmt` - Formats TypeScript, JSON, and Markdown files
+- `dprint fmt` - Formats TypeScript, JSON, and Markdown files  
+- `eslint . --fix` - Auto-fixes ESLint issues
 
-## 2. Linting
+## 2. Manual Linting Check
 
 ```bash
 bun run lint
 ```
 
 - Runs ESLint with Effect-TS specific rules
-- Check for code quality issues
-- Use `bun run lint:fix` for auto-fixable issues
+- Checks for code quality issues
+- Use after format command to verify no remaining issues
 
 ## 3. Type Checking
 
-TypeScript type checking is built into the development workflow via:
+```bash
+bun run typecheck
+```
 
+**Available via dedicated script:**
+- `tsc --noEmit --skipLibCheck --project .`
 - IDE integration with @effect/language-service plugin
-- Build process validates types
+- Build process also validates types
 
 ## 4. Testing
 
-- Currently no test framework configured
-- Use `bun test` when tests are added
+```bash
+bun test
+```
 
-## 5. Build Verification (Optional)
+- Use when test files are added (*.test.ts, *.spec.ts)
+- Bun has built-in test runner
+
+## 5. Build Verification
 
 ```bash
 bun run build
 ```
 
-- Verifies the application builds successfully
-- Creates minified bundle in `dist/`
+- Creates minified bundle in `dist/index.js`
+- Targets Bun runtime with optimizations
+- Verifies production build works
 
-## Notes
+## 6. Development Testing
 
-- No explicit test runner currently configured
-- Effect-TS provides runtime type safety
-- Always ensure environment variables (HOST, PORT) are properly configured
+```bash
+bun run dev
+```
+
+- Runs application directly from source
+- Quick verification that app starts and works
+
+## Environment Requirements
+
+**Current application requires:**
+```bash
+OPENMEMORY_BEARER_TOKEN=your-api-token
+```
+
+## Quality Standards
+
+- ✅ Schema validation ensures runtime type safety
+- ✅ Comprehensive error handling prevents crashes  
+- ✅ All code must pass format, lint, and typecheck
+- ✅ Production builds must complete successfully
+- ✅ Development runs must start without errors

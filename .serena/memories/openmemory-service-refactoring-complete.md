@@ -1,49 +1,60 @@
-# OpenMemory Service Refactoring - COMPLETED
+# OpenMemory Service Implementation - CURRENT STATE
 
 ## Overview
 
-Successfully refactored the OpenMemory API interaction into a proper Effect service with dependency injection following Effect best practices.
+Modern Effect-TS service implementation using Schema.Class patterns and comprehensive error handling.
 
-## Changes Made
+## Current Implementation
 
-### 1. Created TypeScript Types (`src/types.ts`)
+### 1. Schema-Based Types (`src/types.ts`)
 
-- `OpenMemoryItem`: Individual memory item structure with id, content, created_at, state, app_id, app_name, categories, metadata_
-- `OpenMemoryFilterResponse`: API response with items array, total, page, size, pages
-- `OpenMemoryFilterRequest`: Request parameters with optional page, size, sort_column, sort_direction
+- `OpenMemoryFilterResponse`: Schema.Class with `empty()` static method
+- `OpenMemoryFilterRequest`: Schema.Class with `default()` static method  
+- Uses Effect Schema for runtime validation and type safety
+- Includes static factory methods for common use cases
 
-### 2. Implemented OpenMemoryService (`src/services/OpenMemoryService.ts`)
+### 2. OpenMemory Service (`src/services/OpenMemory.ts`)
 
-- Proper Effect service pattern using `Context.GenericTag`
-- Dependency injection for HttpClient and Config
-- `filterMemories` method with configurable parameters and sensible defaults
-- Service layer provides its own FetchHttpClient.layer dependency
-- Clean interface: `OpenMemoryService.filterMemories(request?: OpenMemoryFilterRequest)`
+- **Pattern**: `Context.Tag` service with `Default` layer
+- **Dependencies**: HttpClient and Config (bearer token)
+- **Method**: `filterMemories(request?: OpenMemoryFilterRequest)`
+- **Error Types**: ParseError | HttpClientError | HttpBodyError
+- **Features**: 
+  - Uses `Config.redacted()` for secure token handling
+  - Schema-based response validation
+  - Bearer token authentication
+  - JSON request/response handling
 
-### 3. Refactored Main Application (`src/index.ts`)
+### 3. Main Application (`src/index.ts`)
 
-- Uses dependency injection to access OpenMemoryService
-- Clean Layer.mergeAll composition: `Layer.mergeAll(BunContext.layer, OpenMemoryServiceLive)`
-- Improved logging with memory count and pagination info
-- Simplified program structure using Effect.gen
+- **Error Handling**: Comprehensive `catchTags` for all error types:
+  - `HttpBodyError`, `RequestError`, `ResponseError`, `ParseError`
+- **Layer Composition**: `Layer.mergeAll(BunContext.layer, OpenMemory.Default.pipe(Layer.provide(FetchHttpClient.layer)))`
+- **Logging**: Structured logging with error details and result summaries
+- **Resilience**: Falls back to empty response on any API error
 
-## Current Status
+## Technical Features
 
-- ✅ All code formatted and linted successfully
-- ✅ Application runs without errors
-- ✅ Service architecture follows Effect best practices
-- ✅ Layer composition uses requested Layer.mergeAll pattern
-- ✅ Proper dependency injection implemented
-- ✅ Type safety with comprehensive TypeScript interfaces
+- ✅ Schema validation for type safety at runtime
+- ✅ Comprehensive error handling and recovery
+- ✅ Secure credential management with redacted tokens
+- ✅ Modern Effect-TS patterns (Context.Tag, Layer.effect)
+- ✅ Structured logging throughout request lifecycle
+- ✅ Clean separation of concerns
 
 ## Usage
 
-Requires `OPENMEMORY_BEARER_TOKEN` environment variable to be set. Run with `bun run dev`.
+```typescript
+const result = yield* openMemoryService.filterMemories(); // Uses defaults
+const result = yield* openMemoryService.filterMemories(customRequest);
+```
+
+Requires `OPENMEMORY_BEARER_TOKEN` environment variable. Run with `bun run dev`.
 
 ## Architecture Benefits
 
-- Testable service with clear boundaries
-- Proper dependency injection
-- Reusable service that can be extended
-- Type-safe API interactions
-- Clean separation of concerns
+- Runtime type validation with Schema.Class
+- Bulletproof error handling prevents crashes
+- Secure token management  
+- Testable service boundaries
+- Production-ready resilience patterns
