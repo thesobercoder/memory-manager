@@ -19,7 +19,17 @@ export class OpenMemoryFilterResponse extends Schema.Class<OpenMemoryFilterRespo
   page: Schema.Number,
   size: Schema.Number,
   pages: Schema.Number
-}) {}
+}) {
+  static empty() {
+    return new OpenMemoryFilterResponse({
+      items: [],
+      total: 0,
+      page: 1,
+      size: 25,
+      pages: 0
+    });
+  }
+}
 
 export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterRequest>("OpenMemoryFilterRequest")({
   page: Schema.Number,

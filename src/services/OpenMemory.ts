@@ -1,6 +1,6 @@
 import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Config, Context, Effect, Layer } from "effect";
-import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, type OpenMemoryServiceError } from "../types.js";
+import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, type OpenMemoryServiceError } from "../types";
 
 export class OpenMemory extends Context.Tag("OpenMemoryService")<
   OpenMemory,
