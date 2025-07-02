@@ -1,6 +1,6 @@
 import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Config, Context, Effect, Layer } from "effect";
-import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, OpenMemoryServiceError } from "../types.js";
+import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, type OpenMemoryServiceError } from "../types.js";
 
 export class OpenMemory extends Context.Tag("OpenMemoryService")<
   OpenMemory,
@@ -34,13 +34,7 @@ export class OpenMemory extends Context.Tag("OpenMemoryService")<
           );
 
           const data = yield* httpClient.execute(httpRequest).pipe(
-            Effect.flatMap(HttpClientResponse.schemaBodyJson(OpenMemoryFilterResponse)),
-            Effect.mapError((error) =>
-              new OpenMemoryServiceError({
-                cause: error,
-                message: "Failed to filter memories"
-              })
-            )
+            Effect.flatMap(HttpClientResponse.schemaBodyJson(OpenMemoryFilterResponse))
           );
 
           return data;
