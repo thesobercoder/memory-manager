@@ -1,13 +1,13 @@
-import { HttpBody, HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Config, Context, Effect, Layer } from "effect";
-import { OpenMemoryFilterRequest, OpenMemoryFilterResponse, type OpenMemoryServiceError } from "../types";
+import { HttpBody, HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import { Config, Context, Effect, Layer, ParseResult } from "effect";
+import { OpenMemoryFilterRequest, OpenMemoryFilterResponse } from "../types";
 
 export class OpenMemory extends Context.Tag("OpenMemoryService")<
   OpenMemory,
   {
     readonly filterMemories: (
       request?: OpenMemoryFilterRequest
-    ) => Effect.Effect<OpenMemoryFilterResponse, OpenMemoryServiceError>;
+    ) => Effect.Effect<OpenMemoryFilterResponse, ParseResult.ParseError | HttpClientError.HttpClientError>;
   }
 >() {
   static Default = Layer.effect(
