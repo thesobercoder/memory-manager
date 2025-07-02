@@ -28,6 +28,7 @@ export class OpenMemory extends Context.Tag("OpenMemoryService")<
           const data = yield* HttpClientRequest.post(`${baseUrl}/memories/filter`).pipe(
             HttpClientRequest.bearerToken(bearerToken),
             HttpClientRequest.acceptJson,
+            HttpClientRequest.setHeader("Content-Type", "application/json"),
             HttpClientRequest.bodyJson(request ?? defaultRequest),
             Effect.flatMap(httpClient.execute),
             Effect.flatMap(HttpClientResponse.schemaBodyJson(OpenMemoryFilterResponse))
