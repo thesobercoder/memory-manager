@@ -1,325 +1,169 @@
-import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { expect, test } from "bun:test";
-import { Effect, Exit, Layer, ParseResult } from "effect";
+import { HttpClientError } from "@effect/platform";
+import { expect } from "bun:test";
+import { Effect, Layer, ParseResult } from "effect";
 import { OpenMemory } from "../src/services/OpenMemory";
 import { OpenMemoryFilterRequest, OpenMemoryFilterResponse } from "../src/types";
-import { defaultConfigLayer } from "./helpers/MockConfig";
 
-// Simple mock response creator
-const createMockResponse = (data: unknown, status = 200): HttpClientResponse.HttpClientResponse => ({
-  status,
-  headers: {},
-  json: Effect.succeed(data),
-  text: Effect.succeed(JSON.stringify(data))
-} as unknown as HttpClientResponse.HttpClientResponse);
+// Import our idiomatic Effect testing utilities
+import { mockEncodingErrorLayer, mockErrorLayer, mockNetworkErrorLayer, mockSuccessLayer } from "./support/mock-http";
+import { customPageResponse, malformedResponse, validSuccessResponse } from "./support/test-data";
+import { it } from "./support/test-utils";
 
-// Create error response
-const createErrorResponse = (status: number): HttpClientError.HttpClientError =>
-  new HttpClientError.ResponseError({
-    request: {} as HttpClientRequest.HttpClientRequest,
-    response: {
-      status,
-      headers: {},
-      json: Effect.fail(new Error("Response error")),
-      text: Effect.fail(new Error("Response error"))
-    } as unknown as HttpClientResponse.HttpClientResponse,
-    reason: "StatusCode"
-  });
-
-// Create request error (network failures, timeouts, DNS issues)
-const createRequestError = (): HttpClientError.HttpClientError =>
-  new HttpClientError.RequestError({
-    request: {} as HttpClientRequest.HttpClientRequest,
-    reason: "Transport",
-    cause: new Error("Network timeout")
-  });
-
-// Create body error (body parsing issues) - use different error type
-const createBodyError = (): HttpClientError.HttpClientError =>
-  new HttpClientError.RequestError({
-    request: {} as HttpClientRequest.HttpClientRequest,
-    reason: "Encode",
-    cause: new Error("Body parsing failed")
-  });
-
-// Helper to create test layers with different mock behaviors
-const createTestLayer = (
-  mockBehavior: (
-    request: HttpClientRequest.HttpClientRequest
-  ) => Effect.Effect<HttpClientResponse.HttpClientResponse, HttpClientError.HttpClientError>
-) => {
-  const mockHttpClientLayer = Layer.effect(
-    HttpClient.HttpClient,
-    Effect.succeed(HttpClient.make(mockBehavior))
-  );
-
-  return Layer.mergeAll(
-    defaultConfigLayer,
-    OpenMemory.Default.pipe(Layer.provide(mockHttpClientLayer))
-  );
-};
+// =============================================================================
+// IDIOMATIC EFFECT-TS TESTING WITH BUN
+// =============================================================================
 
 // Test 1: Schema Validation (ParseError) - HIGHEST ROI
-test("should fail with ParseError when API returns malformed response", async () => {
-  const malformedData = { invalid: "missing required fields" };
-
-  const testLayer = createTestLayer(() => Effect.succeed(createMockResponse(malformedData)));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isFailure(exit)).toBe(true);
-
-  if (Exit.isFailure(exit)) {
-    // Should be a ParseError since the response doesn't match schema
-    if (exit.cause._tag === "Fail") {
-      expect(ParseResult.isParseError(exit.cause.error)).toBe(true);
-    }
+it.effectFail(
+  "should fail with ParseError when API returns malformed response",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      yield* openMemory.filterMemories();
+    }),
+  mockSuccessLayer(malformedResponse),
+  (error) => {
+    expect(ParseResult.isParseError(error)).toBe(true);
   }
-});
+);
 
 // Test 2: Happy Path Success - FOUNDATIONAL
-test("should successfully parse valid API response", async () => {
-  const validResponse = {
-    items: [
-      {
-        id: "test-id-1",
-        content: "Test memory content",
-        created_at: 1672531200000,
-        state: "active",
-        app_id: "test-app",
-        app_name: "Test App",
-        categories: ["work", "important"],
-        metadata_: {
-          key: "test-key",
-          value: "test-value"
-        }
-      }
-    ],
-    total: 1,
-    page: 1,
-    size: 25,
-    pages: 1
-  };
+it.effect(
+  "should successfully parse valid API response",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      const result = yield* openMemory.filterMemories();
 
-  const testLayer = createTestLayer(() => Effect.succeed(createMockResponse(validResponse)));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isSuccess(exit)).toBe(true);
-
-  if (Exit.isSuccess(exit)) {
-    const result = exit.value;
-    expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
-    expect(result.total).toBe(1);
-    expect(result.page).toBe(1);
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0]?.id).toBe("test-id-1");
-    expect(result.items[0]?.content).toBe("Test memory content");
-  }
-});
+      expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]?.id).toBe("test-id-1");
+      expect(result.items[0]?.content).toBe("Test memory content");
+    }),
+  mockSuccessLayer(validSuccessResponse)
+);
 
 // Test 3: Error Recovery Integration - RESILIENCE
-test("should demonstrate error recovery patterns work", async () => {
-  // Test the error recovery pattern used in the main application
-  const mockError = new Error("Simulated API failure");
+it.effectWith(
+  "should demonstrate error recovery patterns work",
+  () =>
+    Effect.gen(function*() {
+      const failingCall = Effect.fail(new Error("Simulated API failure"));
 
-  const program = Effect.gen(function*() {
-    // Simulate a failing service call
-    const failingCall = Effect.fail(mockError);
+      const result = yield* failingCall.pipe(
+        Effect.catchAll(() => Effect.succeed(OpenMemoryFilterResponse.empty()))
+      );
 
-    // Apply the same error recovery pattern as in index.ts (without noisy logging)
-    const result = yield* failingCall.pipe(
-      Effect.catchAll(() => {
-        // In tests, we skip logging to reduce noise - just test the recovery pattern
-        return Effect.succeed(OpenMemoryFilterResponse.empty());
-      })
-    );
+      expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
+      expect(result.total).toBe(0);
+      expect(result.items).toHaveLength(0);
+    }),
+  () => Layer.empty // No services needed for this test
+);
 
-    return result;
-  });
-
-  const exit = await Effect.runPromiseExit(program);
-
-  expect(Exit.isSuccess(exit)).toBe(true);
-
-  if (Exit.isSuccess(exit)) {
-    const result = exit.value;
-    // Should fallback to empty response instead of crashing
-    expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
-    expect(result.total).toBe(0);
-    expect(result.items).toHaveLength(0);
-    expect(result.page).toBe(0);
-    expect(result.size).toBe(0);
-    expect(result.pages).toBe(0);
+// Test 4: HTTP Error Handling - SERVER ERRORS
+it.effectFail(
+  "should handle HTTP errors (500) correctly",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      yield* openMemory.filterMemories();
+    }),
+  mockErrorLayer(500),
+  (error) => {
+    expect(HttpClientError.isHttpClientError(error)).toBe(true);
+    const httpError = error as { _tag: string; response: { status: number; }; };
+    expect(httpError._tag).toBe("ResponseError");
+    expect(httpError.response.status).toBe(500);
   }
-});
-
-// Test 4: HTTP Error Handling - COMMON FAILURE
-test("should handle HTTP errors (500, 403) correctly", async () => {
-  const testLayer = createTestLayer(() => Effect.fail(createErrorResponse(500)));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isFailure(exit)).toBe(true);
-
-  if (Exit.isFailure(exit)) {
-    // The important thing is that the service fails appropriately when HTTP errors occur
-    // This test ensures the error propagates correctly rather than hanging or succeeding unexpectedly
-    // Accept either "Fail" or "Die" as valid error types
-    expect(["Fail", "Die"]).toContain(exit.cause._tag);
-    const hasError = (exit.cause._tag === "Fail" && exit.cause.error) ||
-      (exit.cause._tag === "Die" && exit.cause.defect);
-    expect(hasError).toBeTruthy();
-  }
-});
+);
 
 // Test 5: RequestError Handling - NETWORK FAILURES
-test("should handle RequestError (network timeouts, DNS failures)", async () => {
-  const testLayer = createTestLayer(() => Effect.fail(createRequestError()));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isFailure(exit)).toBe(true);
-
-  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-    // Should be specifically a RequestError
-    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
-
-    // Check if it's a RequestError by checking the _tag property
-    const error = exit.cause.error as { _tag: string; };
-    expect(error._tag).toBe("RequestError");
+it.effectFail(
+  "should handle RequestError (network timeouts, DNS failures)",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      yield* openMemory.filterMemories();
+    }),
+  mockNetworkErrorLayer(),
+  (error) => {
+    expect(HttpClientError.isHttpClientError(error)).toBe(true);
+    const networkError = error as { _tag: string; };
+    expect(networkError._tag).toBe("RequestError");
   }
-});
+);
 
-// Test 6: Encoding Error Handling - ENCODING/BODY PROCESSING FAILURES
-test("should handle encoding errors (body processing failures)", async () => {
-  const testLayer = createTestLayer(() => Effect.fail(createBodyError()));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isFailure(exit)).toBe(true);
-
-  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-    // Should be specifically a RequestError with Encode reason
-    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
-
-    // Check if it's a RequestError by checking the _tag property
-    const error = exit.cause.error as { _tag: string; };
-    expect(error._tag).toBe("RequestError");
+// Test 6: Encoding Error Handling - BODY PROCESSING FAILURES
+it.effectFail(
+  "should handle encoding errors (body processing failures)",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      yield* openMemory.filterMemories();
+    }),
+  mockEncodingErrorLayer(),
+  (error) => {
+    expect(HttpClientError.isHttpClientError(error)).toBe(true);
+    const encodingError = error as { _tag: string; };
+    expect(encodingError._tag).toBe("RequestError");
   }
-});
+);
 
 // Test 7: Authentication Error - 401/403 RESPONSES
-test("should handle authentication errors (401/403)", async () => {
-  const testLayer = createTestLayer(() => Effect.fail(createErrorResponse(401)));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isFailure(exit)).toBe(true);
-
-  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
-
-    // Check if it's a ResponseError by checking the _tag property
-    const error = exit.cause.error as { _tag: string; response: { status: number; }; };
-    expect(error._tag).toBe("ResponseError");
-    expect(error.response.status).toBe(401);
+it.effectFail(
+  "should handle authentication errors (401/403)",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      yield* openMemory.filterMemories();
+    }),
+  mockErrorLayer(401),
+  (error) => {
+    expect(HttpClientError.isHttpClientError(error)).toBe(true);
+    const authError = error as { _tag: string; response: { status: number; }; };
+    expect(authError._tag).toBe("ResponseError");
+    expect(authError.response.status).toBe(401);
   }
-});
+);
 
 // Test 8: Rate Limiting Error - 429 RESPONSES
-test("should handle rate limiting errors (429)", async () => {
-  const testLayer = createTestLayer(() => Effect.fail(createErrorResponse(429)));
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories();
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isFailure(exit)).toBe(true);
-
-  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
-    expect(HttpClientError.isHttpClientError(exit.cause.error)).toBe(true);
-
-    // Check if it's a ResponseError by checking the _tag property
-    const error = exit.cause.error as { _tag: string; response: { status: number; }; };
-    expect(error._tag).toBe("ResponseError");
-    expect(error.response.status).toBe(429);
+it.effectFail(
+  "should handle rate limiting errors (429)",
+  () =>
+    Effect.gen(function*() {
+      const openMemory = yield* OpenMemory;
+      yield* openMemory.filterMemories();
+    }),
+  mockErrorLayer(429),
+  (error) => {
+    expect(HttpClientError.isHttpClientError(error)).toBe(true);
+    const rateLimitError = error as { _tag: string; response: { status: number; }; };
+    expect(rateLimitError._tag).toBe("ResponseError");
+    expect(rateLimitError.response.status).toBe(429);
   }
-});
+);
 
-// Bonus Test: Request Parameters
-test("should handle custom request parameters", async () => {
-  const validResponse = {
-    items: [],
-    total: 0,
-    page: 2,
-    size: 10,
-    pages: 0
-  };
+// Test 9: Request Parameters - CUSTOM PARAMETER HANDLING
+it.effect(
+  "should handle custom request parameters",
+  () =>
+    Effect.gen(function*() {
+      const customRequest = new OpenMemoryFilterRequest({
+        page: 2,
+        size: 10,
+        sort_column: "updated_at",
+        sort_direction: "asc"
+      });
 
-  let capturedRequest: HttpClientRequest.HttpClientRequest | null = null;
+      const openMemory = yield* OpenMemory;
+      const result = yield* openMemory.filterMemories(customRequest);
 
-  const testLayer = createTestLayer((request) => {
-    capturedRequest = request;
-    return Effect.succeed(createMockResponse(validResponse));
-  });
-
-  const customRequest = new OpenMemoryFilterRequest({
-    page: 2,
-    size: 10,
-    sort_column: "updated_at",
-    sort_direction: "asc"
-  });
-
-  const testEffect = Effect.gen(function*() {
-    const openMemoryService = yield* OpenMemory;
-    return yield* openMemoryService.filterMemories(customRequest);
-  });
-
-  const exit = await Effect.runPromiseExit(testEffect.pipe(Effect.provide(testLayer)));
-
-  expect(Exit.isSuccess(exit)).toBe(true);
-
-  if (Exit.isSuccess(exit)) {
-    const result = exit.value;
-    expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
-    expect(result.page).toBe(2);
-    expect(result.size).toBe(10);
-
-    // Verify the request was made (this confirms the service is actually being called)
-    expect(capturedRequest).not.toBeNull();
-  }
-});
+      expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
+      expect(result.page).toBe(2);
+      expect(result.size).toBe(10);
+    }),
+  mockSuccessLayer(customPageResponse)
+);

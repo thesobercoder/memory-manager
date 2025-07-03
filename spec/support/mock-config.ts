@@ -1,10 +1,10 @@
 import { ConfigProvider, Layer } from "effect";
 
-export interface MockConfigValues {
+interface MockConfigValues {
   [key: string]: string;
 }
 
-export class MockConfig {
+class MockConfig {
   static withConfig(values: MockConfigValues) {
     const configProvider = ConfigProvider.fromMap(
       new Map(Object.entries(values))
