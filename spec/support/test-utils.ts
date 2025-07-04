@@ -18,18 +18,21 @@ export const it = {
    * @param effectFn Effect function that should succeed
    * @param layers Optional additional layers to provide
    */
-  effect: <A, E>(
+  effect: <A, E, R = never>(
     name: string,
-    effectFn: () => Effect.Effect<A, E, OpenMemory>,
+    effectFn: () => Effect.Effect<A, E, R>,
     layers?: Layer.Layer<HttpClient.HttpClient>
   ) => {
     test(name, async () => {
       const testLayer = layers ?
-        Layer.mergeAll(defaultConfigLayer, OpenMemory.Default.pipe(Layer.provide(layers))) :
-        Layer.mergeAll(defaultConfigLayer, OpenMemory.Default);
+        Layer.mergeAll(defaultConfigLayer, layers) :
+        defaultConfigLayer;
 
       await Effect.runPromise(
-        effectFn().pipe(Effect.provide(testLayer)) as Effect.Effect<A, ConfigError.ConfigError | E, never>
+        effectFn().pipe(
+          Effect.provideService(OpenMemory.Contract, OpenMemory.Instance),
+          Effect.provide(testLayer)
+        ) as Effect.Effect<A, ConfigError.ConfigError | E, never>
       );
     });
   },
@@ -41,19 +44,21 @@ export const it = {
    * @param layers Layers to provide
    * @param assertion Function to assert on the error
    */
-  effectFail: <A, E>(
+  effectFail: <A, E, R = never>(
     name: string,
-    effectFn: () => Effect.Effect<A, E, OpenMemory>,
+    effectFn: () => Effect.Effect<A, E, R>,
     layers: Layer.Layer<HttpClient.HttpClient>,
     assertion: (error: E | ConfigError.ConfigError) => void
   ) => {
     test(name, async () => {
-      const testLayer = Layer.mergeAll(
-        defaultConfigLayer,
-        OpenMemory.Default.pipe(Layer.provide(layers))
-      );
+      const testLayer = Layer.mergeAll(defaultConfigLayer, layers);
 
-      const result = await Effect.runPromiseExit(effectFn().pipe(Effect.provide(testLayer)));
+      const result = await Effect.runPromiseExit(
+        effectFn().pipe(
+          Effect.provideService(OpenMemory.Contract, OpenMemory.Instance),
+          Effect.provide(testLayer)
+        ) as Effect.Effect<A, ConfigError.ConfigError | E, never>
+      );
 
       if (Exit.isSuccess(result)) {
         throw new Error("Expected effect to fail but it succeeded");

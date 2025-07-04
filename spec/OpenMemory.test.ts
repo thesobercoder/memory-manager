@@ -18,7 +18,7 @@ it.effectFail(
   "should fail with ParseError when API returns malformed response",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       yield* openMemory.filterMemories();
     }),
   mockSuccessLayer(malformedResponse),
@@ -32,7 +32,7 @@ it.effect(
   "should successfully parse valid API response",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       const result = yield* openMemory.filterMemories();
 
       expect(result).toBeInstanceOf(OpenMemoryFilterResponse);
@@ -68,7 +68,7 @@ it.effectFail(
   "should handle HTTP errors (500) correctly",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       yield* openMemory.filterMemories();
     }),
   mockErrorLayer(500),
@@ -85,7 +85,7 @@ it.effectFail(
   "should handle RequestError (network timeouts, DNS failures)",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       yield* openMemory.filterMemories();
     }),
   mockNetworkErrorLayer(),
@@ -101,7 +101,7 @@ it.effectFail(
   "should handle encoding errors (body processing failures)",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       yield* openMemory.filterMemories();
     }),
   mockEncodingErrorLayer(),
@@ -117,7 +117,7 @@ it.effectFail(
   "should handle authentication errors (401/403)",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       yield* openMemory.filterMemories();
     }),
   mockErrorLayer(401),
@@ -134,7 +134,7 @@ it.effectFail(
   "should handle rate limiting errors (429)",
   () =>
     Effect.gen(function*() {
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       yield* openMemory.filterMemories();
     }),
   mockErrorLayer(429),
@@ -158,7 +158,7 @@ it.effect(
         sort_direction: "asc"
       });
 
-      const openMemory = yield* OpenMemory;
+      const openMemory = yield* OpenMemory.Contract;
       const result = yield* openMemory.filterMemories(customRequest);
 
       expect(result).toBeInstanceOf(OpenMemoryFilterResponse);

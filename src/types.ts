@@ -45,3 +45,44 @@ export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterReques
     });
   }
 }
+
+export class MemoryClassificationResponse
+  extends Schema.Class<MemoryClassificationResponse>("MemoryClassificationResponse")({
+    classification: Schema.Union(Schema.Literal("transient"), Schema.Literal("long-term")),
+    confidence: Schema.Number.pipe(Schema.clamp(0, 1))
+  })
+{}
+
+// Model enumeration for the refactored architecture
+export enum ModelEnum {
+  MODEL1 = "google/gemini-2.5-flash",
+  MODEL2 = "deepseek/deepseek-chat-v3-0324",
+  MODEL3 = "openai/gpt-4o-mini"
+}
+
+// Result from a single model classification
+export class ClassificationResult extends Schema.Class<ClassificationResult>("ClassificationResult")({
+  modelName: Schema.String,
+  classification: Schema.Union(
+    Schema.Literal("transient"),
+    Schema.Literal("long-term"),
+    Schema.Literal("unclassified")
+  ),
+  confidence: Schema.Number.pipe(Schema.clamp(0, 1)),
+  reasoning: Schema.String,
+  status: Schema.Union(Schema.Literal("success"), Schema.Literal("failed")),
+  error: Schema.optional(Schema.String)
+}) {}
+
+// Result from the consensus service
+export class ConsensusResult extends Schema.Class<ConsensusResult>("ConsensusResult")({
+  finalClassification: Schema.Union(
+    Schema.Literal("transient"),
+    Schema.Literal("long-term"),
+    Schema.Literal("uncertain")
+  ),
+  confidence: Schema.Number.pipe(Schema.clamp(0, 1)),
+  individualResults: Schema.Array(Schema.instanceOf(ClassificationResult)),
+  successfulModels: Schema.Number,
+  failedModels: Schema.Number
+}) {}
