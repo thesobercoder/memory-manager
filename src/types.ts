@@ -60,6 +60,17 @@ export enum ModelEnum {
   MODEL3 = "openai/gpt-4o-mini"
 }
 
+// Schema for individual model output
+export const ModelOutputSchema = Schema.Struct({
+  classification: Schema.Union(
+    Schema.Literal("transient"),
+    Schema.Literal("long-term"),
+    Schema.Literal("unclassified")
+  ),
+  confidence: Schema.Number.pipe(Schema.clamp(0, 1)),
+  reasoning: Schema.String
+});
+
 // Result from a single model classification
 export class ClassificationResult extends Schema.Class<ClassificationResult>("ClassificationResult")({
   modelName: Schema.String,

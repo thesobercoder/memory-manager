@@ -3,8 +3,8 @@ import * as OpenAiLanguageModel from "@effect/ai-openai/OpenAiLanguageModel";
 import * as AiError from "@effect/ai/AiError";
 import * as AiLanguageModel from "@effect/ai/AiLanguageModel";
 import { FetchHttpClient } from "@effect/platform";
-import { Config, Context, Effect, Layer, Schema } from "effect";
-import { ClassificationResult, ModelEnum } from "../types";
+import { Config, Context, Effect, Layer } from "effect";
+import { ClassificationResult, ModelEnum, ModelOutputSchema } from "../types";
 
 // Service Contract
 class MemoryClassificationContract extends Context.Tag("MemoryClassificationService")<
@@ -19,17 +19,6 @@ class MemoryClassificationContract extends Context.Tag("MemoryClassificationServ
 
 // Configuration for OpenRouter integration
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-
-// Schema for individual model output
-const ModelOutputSchema = Schema.Struct({
-  classification: Schema.Union(
-    Schema.Literal("transient"),
-    Schema.Literal("long-term"),
-    Schema.Literal("unclassified")
-  ),
-  confidence: Schema.Number.pipe(Schema.clamp(0, 1)),
-  reasoning: Schema.String
-});
 
 // Classification prompt template for structured output
 const getClassificationPrompt = (content: string) => `

@@ -3,7 +3,9 @@
 ## File Organization Rules
 
 ### 1. Schema Classes - Central types.ts
+
 All schema classes (data structures) must be declared in `src/types.ts`:
+
 ```typescript
 // src/types.ts
 export class ClassificationResult extends Schema.Class<ClassificationResult>("ClassificationResult")({
@@ -19,6 +21,7 @@ export enum ModelEnum {
 ```
 
 ### 2. Service Files - Contract + Live Co-location
+
 Each service file contains Contract followed by Live implementation together:
 
 ```typescript
@@ -56,17 +59,20 @@ export const MemoryClassification = {
 ## Export Rules (CRITICAL)
 
 **Service files are ONLY allowed to export:**
+
 - `Contract` - The service interface
 - `Instance` - The live implementation
 
 **Everything else MUST stay private:**
+
 - Helper functions
-- Configuration constants  
+- Configuration constants
 - Internal schemas
 - Layer definitions
 - Utility functions
 
 **Example of what NOT to export:**
+
 ```typescript
 // ❌ WRONG - Do not export these
 export const getModelLayer = ...;
@@ -83,6 +89,7 @@ export const MemoryClassification = {
 ## Canonical Effect-TS Service Pattern
 
 ### 1. Service Interface (Contract)
+
 ```typescript
 class UserService extends Context.Tag("UserService")<
   UserService,
@@ -94,6 +101,7 @@ class UserService extends Context.Tag("UserService")<
 ```
 
 ### 2. Implementation as Plain Object
+
 ```typescript
 const fakeUserService = {
   getUser: (id: string) =>
@@ -108,6 +116,7 @@ const fakeUserService = {
 ```
 
 ### 3. Service Provision
+
 ```typescript
 Effect.provideService(UserService, fakeUserService);
 ```
