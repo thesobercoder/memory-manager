@@ -41,11 +41,11 @@ const getModelLayer = (
 ): Layer.Layer<AiLanguageModel.AiLanguageModel, never, OpenAiClient.OpenAiClient> => {
   switch (model) {
     case ModelEnum.MODEL1:
-      return GeminiLanguageModelLayer;
+      return LanguageModel1Layer;
     case ModelEnum.MODEL2:
-      return GrokLanguageModelLayer;
+      return LanguageModel2Layer;
     case ModelEnum.MODEL3:
-      return O3MiniLanguageModelLayer;
+      return LanguageMode3lLayer;
     default:
       throw new Error(`Unsupported model: ${model}`);
   }
@@ -58,7 +58,7 @@ const ClientLayer = OpenAiClient.layerConfig({
 });
 
 // Create language model layers for all three models
-const GeminiLanguageModelLayer = OpenAiLanguageModel.layer({
+const LanguageModel1Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL1,
   config: {
     max_tokens: 500,
@@ -66,7 +66,7 @@ const GeminiLanguageModelLayer = OpenAiLanguageModel.layer({
   }
 });
 
-const GrokLanguageModelLayer = OpenAiLanguageModel.layer({
+const LanguageModel2Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL2,
   config: {
     max_tokens: 150,
@@ -74,7 +74,7 @@ const GrokLanguageModelLayer = OpenAiLanguageModel.layer({
   }
 });
 
-const O3MiniLanguageModelLayer = OpenAiLanguageModel.layer({
+const LanguageMode3lLayer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL3,
   config: {
     max_tokens: 150,
