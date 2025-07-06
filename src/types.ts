@@ -33,7 +33,7 @@ export class OpenMemoryFilterResponse extends Schema.Class<OpenMemoryFilterRespo
 export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterRequest>("OpenMemoryFilterRequest")({
   page: Schema.Number,
   size: Schema.Number,
-  sort_column: Schema.String,
+  sort_column: Schema.Union(Schema.Literal("created_at")),
   sort_direction: Schema.Union(Schema.Literal("asc"), Schema.Literal("desc"))
 }) {
   static default() {
@@ -45,6 +45,15 @@ export class OpenMemoryFilterRequest extends Schema.Class<OpenMemoryFilterReques
     });
   }
 }
+
+export class OpenMemoryDeleteRequest extends Schema.Class<OpenMemoryDeleteRequest>("OpenMemoryDeleteRequest")({
+  memory_ids: Schema.Array(Schema.String)
+}) {}
+
+export class OpenMemoryDeleteResponse extends Schema.Class<OpenMemoryDeleteResponse>("OpenMemoryDeleteResponse")({
+  message: Schema.String,
+  user_id: Schema.String
+}) {}
 
 export class MemoryClassificationResponse
   extends Schema.Class<MemoryClassificationResponse>("MemoryClassificationResponse")({

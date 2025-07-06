@@ -4,7 +4,51 @@ import { Effect } from "effect";
 import { ConsensusService } from "./services/ConsensusService";
 import { MemoryClassification } from "./services/MemoryClassification";
 import { OpenMemory } from "./services/OpenMemory";
-import { ClassificationAttempt, ModelEnum, OpenMemoryFilterResponse } from "./types";
+import {
+  ClassificationAttempt,
+  ModelEnum,
+  OpenMemoryDeleteRequest,
+  OpenMemoryFilterRequest,
+  OpenMemoryFilterResponse
+} from "./types";
+
+// Helper function to fetch all pages of memories
+const fetchAllMemories = (
+  openMemoryService: typeof OpenMemory.Instance
+) => {
+  return Effect.gen(function*() {
+    const allMemories: Array<OpenMemoryFilterResponse["items"][number]> = [];
+    let currentPage = 1;
+    let totalPages = 1;
+
+    do {
+      const request = new OpenMemoryFilterRequest({
+        page: currentPage,
+        size: 25,
+        sort_column: "created_at",
+        sort_direction: "desc"
+      });
+
+      const result = yield* openMemoryService.getMemories(request).pipe(
+        Effect.catchAll((error) =>
+          Effect.gen(function*() {
+            yield* Effect.logError(`OpenMemory API Error on page ${currentPage}: ${String(error)}`);
+            return OpenMemoryFilterResponse.empty();
+          })
+        )
+      );
+
+      allMemories.push(...result.items);
+      totalPages = result.pages;
+
+      yield* Effect.log(`Fetched page ${currentPage}/${totalPages} with ${result.items.length} memories`);
+
+      currentPage++;
+    } while (currentPage <= totalPages);
+
+    return allMemories;
+  });
+};
 
 // Helper function to classify content with a specific model and create a ClassificationAttempt
 const classifyAndCreateAttempt = (
@@ -39,19 +83,12 @@ const program = Effect.gen(function*() {
   const memoryClassificationService = yield* MemoryClassification.Contract;
   const consensusService = yield* ConsensusService.Contract;
 
-  const result = yield* openMemoryService.filterMemories().pipe(
-    Effect.catchAll((error) =>
-      Effect.gen(function*() {
-        yield* Effect.logError(`OpenMemory API Error: ${String(error)}`);
-        return OpenMemoryFilterResponse.empty();
-      })
-    )
-  );
-
-  yield* Effect.log(`Retrieved ${result.total} total memories (page ${result.page}/${result.pages})`);
+  // Fetch all memories from all pages
+  const allMemories = yield* fetchAllMemories(openMemoryService);
+  yield* Effect.log(`Retrieved ${allMemories.length} total memories from all pages`);
 
   // Classify each memory using the new separated architecture
-  for (const memory of result.items) {
+  for (const memory of allMemories) {
     yield* Effect.gen(function*() {
       const truncatedContent = memory.content.length > 50
         ? `${memory.content.substring(0, 50)}...`
@@ -64,23 +101,6 @@ const program = Effect.gen(function*() {
         classifyAndCreateAttempt(memoryClassificationService, ModelEnum.MODEL3, memory.content)
       ]);
 
-      // Log individual model results for debugging
-      yield* Effect.log(`📊 Individual results for "${truncatedContent}":`);
-
-      // Helper function to format classification attempt
-      const formatAttempt = (attempt: ClassificationAttempt) => {
-        if (attempt.status === "success" && attempt.result) {
-          return `${attempt.result.classification} (${(attempt.result.confidence * 100).toFixed(1)}%) - success`;
-        } else {
-          return `failed - ${attempt.error}`;
-        }
-      };
-
-      // Log each model result
-      for (const attempt of classificationAttempts) {
-        yield* Effect.log(`  • ${attempt.modelName}: ${formatAttempt(attempt)}`);
-      }
-
       // Calculate consensus
       const consensus = yield* consensusService.calculateConsensus(classificationAttempts);
 
@@ -90,6 +110,38 @@ const program = Effect.gen(function*() {
           (consensus.confidence * 100).toFixed(1)
         }% consensus, ${consensus.successfulModels}/${consensus.successfulModels + consensus.failedModels} models)`
       );
+
+      // Delete immediately if classified as transient with high confidence
+      if (consensus.finalClassification === "transient" && consensus.confidence >= 0.7) {
+        yield* Effect.log(
+          `🗑️  Deleting transient memory: "${truncatedContent}" (${
+            (consensus.confidence * 100).toFixed(1)
+          }% confidence)`
+        );
+
+        const deleteRequest = new OpenMemoryDeleteRequest({
+          memory_ids: [memory.id]
+        });
+
+        const deleteResult = yield* openMemoryService.deleteMemories(deleteRequest).pipe(
+          Effect.catchAll((error) =>
+            Effect.gen(function*() {
+              yield* Effect.logError(`❌ Failed to delete memory "${truncatedContent}": ${String(error)}`);
+              return null;
+            })
+          )
+        );
+
+        if (deleteResult) {
+          yield* Effect.log(`✅ Successfully deleted "${truncatedContent}"`);
+        }
+      } else if (consensus.finalClassification === "transient" && consensus.confidence < 0.7) {
+        yield* Effect.log(
+          `⚠️  Skipping deletion of "${truncatedContent}" - low confidence (${
+            (consensus.confidence * 100).toFixed(1)
+          }%)`
+        );
+      }
     });
   }
 });

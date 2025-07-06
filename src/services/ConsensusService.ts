@@ -1,9 +1,46 @@
 /**
  * Consensus calculation service for aggregating multiple AI model classification results.
- * Implements majority voting with confidence scoring based on agreement levels.
+ * Implements majority voting with confidence scoring based on average individual model confidence.
  */
 import { Context, Effect } from "effect";
 import { ClassificationAttempt, ConsensusResult } from "../types";
+
+type FinalClassification = ConsensusResult["finalClassification"];
+
+// Helper function to calculate average confidence from votes
+const averageConfidence = (votes: ClassificationAttempt[]): number => {
+  const confidences = votes.map((vote) => vote.result?.confidence || 0);
+  return confidences.length > 0
+    ? confidences.reduce((sum, conf) => sum + conf, 0) / confidences.length
+    : 0;
+};
+
+// Functional consensus calculation
+const calculateConsensusResult = (
+  transientVotes: ClassificationAttempt[],
+  longTermVotes: ClassificationAttempt[],
+  allSuccessful: ClassificationAttempt[]
+): { classification: FinalClassification; confidence: number; } => {
+  if (transientVotes.length > longTermVotes.length) {
+    return {
+      classification: "transient",
+      confidence: averageConfidence(transientVotes)
+    };
+  }
+
+  if (longTermVotes.length > transientVotes.length) {
+    return {
+      classification: "long-term",
+      confidence: averageConfidence(longTermVotes)
+    };
+  }
+
+  // Tie case
+  return {
+    classification: "uncertain",
+    confidence: averageConfidence(allSuccessful) || 0.5
+  };
+};
 
 // Service Contract
 class ConsensusServiceContract extends Context.Tag("ConsensusService")<
@@ -14,30 +51,6 @@ class ConsensusServiceContract extends Context.Tag("ConsensusService")<
     ) => Effect.Effect<ConsensusResult, never, never>;
   }
 >() {}
-
-/**
- * Calculate confidence based on consensus strength
- * Formula: unanimous = 100%, strong majority (≥70%) = 85%, simple majority (>50%) = 67%, ties = 50%
- */
-const calculateConfidence = (totalSuccessful: number, majorityVotes: number): number => {
-  if (totalSuccessful === 0) return 0.1;
-
-  const ratio = majorityVotes / totalSuccessful;
-
-  if (ratio === 1.0) {
-    // Unanimous decision (100%)
-    return 1.0;
-  } else if (ratio >= 0.7) {
-    // Strong majority (≥70%, e.g., 7/10 = 70%, 3/4 = 75%)
-    return 0.85;
-  } else if (ratio > 0.5) {
-    // Simple majority (>50% but <70%, e.g., 2/3 = 66.67%)
-    return 0.67;
-  } else {
-    // Tie or minority (≤50%)
-    return 0.5;
-  }
-};
 
 // Service Implementation
 const consensusServiceLive = {
@@ -66,27 +79,12 @@ const consensusServiceLive = {
         (attempt) => attempt.result?.classification === "long-term"
       );
 
-      // Determine final classification based on majority vote
-      let finalClassification: "transient" | "long-term" | "uncertain";
-      let confidence: number;
-
-      if (transientVotes.length > longTermVotes.length) {
-        // Transient wins
-        finalClassification = "transient";
-        confidence = calculateConfidence(successfulAttempts.length, transientVotes.length);
-      } else if (longTermVotes.length > transientVotes.length) {
-        // Long-term wins
-        finalClassification = "long-term";
-        confidence = calculateConfidence(successfulAttempts.length, longTermVotes.length);
-      } else {
-        // Tie - uncertain result
-        finalClassification = "uncertain";
-        confidence = 0.5; // 50% confidence for ties
-      }
+      // Calculate consensus using functional approach
+      const result = calculateConsensusResult(transientVotes, longTermVotes, successfulAttempts);
 
       return new ConsensusResult({
-        finalClassification,
-        confidence,
+        finalClassification: result.classification,
+        confidence: result.confidence,
         individualResults: attempts,
         successfulModels: successfulAttempts.length,
         failedModels: failedAttempts.length
