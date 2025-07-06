@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { ConsensusService } from "./services/ConsensusService";
 import { MemoryClassification } from "./services/MemoryClassification";
 import { OpenMemory } from "./services/OpenMemory";
-import { ModelEnum, OpenMemoryFilterResponse } from "./types";
+import { ClassificationAttempt, ModelEnum, OpenMemoryFilterResponse } from "./types";
 
 const program = Effect.gen(function*() {
   yield* Effect.log("Fetching Data from OpenMemory...");
@@ -14,28 +14,12 @@ const program = Effect.gen(function*() {
   const consensusService = yield* ConsensusService.Contract;
 
   const result = yield* openMemoryService.filterMemories().pipe(
-    Effect.catchTags({
-      HttpBodyError: (error) =>
-        Effect.gen(function*() {
-          yield* Effect.logError(`OpenMemory API Body Error: ${error.reason}`);
-          return OpenMemoryFilterResponse.empty();
-        }),
-      RequestError: (error) =>
-        Effect.gen(function*() {
-          yield* Effect.logError(`OpenMemory API Request Error: ${error.reason}`);
-          return OpenMemoryFilterResponse.empty();
-        }),
-      ResponseError: (error) =>
-        Effect.gen(function*() {
-          yield* Effect.logError(`OpenMemory API Response Error: ${error.reason}`);
-          return OpenMemoryFilterResponse.empty();
-        }),
-      ParseError: (error) =>
-        Effect.gen(function*() {
-          yield* Effect.logError(`OpenMemory API Parse Error: ${error.message}`);
-          return OpenMemoryFilterResponse.empty();
-        })
-    })
+    Effect.catchAll((error) =>
+      Effect.gen(function*() {
+        yield* Effect.logError(`OpenMemory API Error: ${String(error)}`);
+        return OpenMemoryFilterResponse.empty();
+      })
+    )
   );
 
   yield* Effect.log(`Retrieved ${result.total} total memories (page ${result.page}/${result.pages})`);
@@ -43,35 +27,87 @@ const program = Effect.gen(function*() {
   // Classify each memory using the new separated architecture
   for (const memory of result.items) {
     yield* Effect.gen(function*() {
-      const truncatedContent = memory.content.length > 100
-        ? `${memory.content.substring(0, 100)}...`
+      const truncatedContent = memory.content.length > 50
+        ? `${memory.content.substring(0, 50)}...`
         : memory.content;
 
-      // Call all three models in parallel
-      const [geminiResult, grokResult, o3Result] = yield* Effect.all([
-        memoryClassificationService.classify(ModelEnum.MODEL1, memory.content),
-        memoryClassificationService.classify(ModelEnum.MODEL2, memory.content),
-        memoryClassificationService.classify(ModelEnum.MODEL3, memory.content)
+      // Call all three models in parallel and convert to ClassificationAttempt objects
+      const classificationAttempts = yield* Effect.all([
+        memoryClassificationService.classify(ModelEnum.MODEL1, memory.content).pipe(
+          Effect.map((result) =>
+            new ClassificationAttempt({
+              modelName: ModelEnum.MODEL1,
+              status: "success",
+              result: result
+            })
+          ),
+          Effect.catchAll((error) =>
+            Effect.succeed(
+              new ClassificationAttempt({
+                modelName: ModelEnum.MODEL1,
+                status: "failed",
+                error: String(error)
+              })
+            )
+          )
+        ),
+        memoryClassificationService.classify(ModelEnum.MODEL2, memory.content).pipe(
+          Effect.map((result) =>
+            new ClassificationAttempt({
+              modelName: ModelEnum.MODEL2,
+              status: "success",
+              result: result
+            })
+          ),
+          Effect.catchAll((error) =>
+            Effect.succeed(
+              new ClassificationAttempt({
+                modelName: ModelEnum.MODEL2,
+                status: "failed",
+                error: String(error)
+              })
+            )
+          )
+        ),
+        memoryClassificationService.classify(ModelEnum.MODEL3, memory.content).pipe(
+          Effect.map((result) =>
+            new ClassificationAttempt({
+              modelName: ModelEnum.MODEL3,
+              status: "success",
+              result: result
+            })
+          ),
+          Effect.catchAll((error) =>
+            Effect.succeed(
+              new ClassificationAttempt({
+                modelName: ModelEnum.MODEL3,
+                status: "failed",
+                error: String(error)
+              })
+            )
+          )
+        )
       ]);
 
       // Log individual model results for debugging
       yield* Effect.log(`📊 Individual results for "${truncatedContent}":`);
 
-      // Helper function to format model result with error details
-      const formatModelResult = (result: typeof geminiResult) => {
-        const baseInfo = `${result.classification} (${(result.confidence * 100).toFixed(1)}%) - ${result.status}`;
-        if (result.status === "failed" && result.error) {
-          return `${baseInfo} | Error: ${result.error}`;
+      // Helper function to format classification attempt
+      const formatAttempt = (attempt: ClassificationAttempt) => {
+        if (attempt.status === "success" && attempt.result) {
+          return `${attempt.result.classification} (${(attempt.result.confidence * 100).toFixed(1)}%) - success`;
+        } else {
+          return `failed - ${attempt.error}`;
         }
-        return baseInfo;
       };
 
-      yield* Effect.log(`  • ${geminiResult.modelName}: ${formatModelResult(geminiResult)}`);
-      yield* Effect.log(`  • ${grokResult.modelName}: ${formatModelResult(grokResult)}`);
-      yield* Effect.log(`  • ${o3Result.modelName}: ${formatModelResult(o3Result)}`);
+      // Log each model result
+      for (const attempt of classificationAttempts) {
+        yield* Effect.log(`  • ${attempt.modelName}: ${formatAttempt(attempt)}`);
+      }
 
       // Calculate consensus
-      const consensus = yield* consensusService.calculateConsensus([geminiResult, grokResult, o3Result]);
+      const consensus = yield* consensusService.calculateConsensus(classificationAttempts);
 
       // Log final consensus result
       yield* Effect.log(

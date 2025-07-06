@@ -1,10 +1,25 @@
+/**
+ * Memory classification service using multiple AI models for content analysis.
+ * Provides parallel classification across different models (Gemini, DeepSeek, GPT-4o-mini)
+ * with structured output and error handling.
+ */
 import * as OpenAiClient from "@effect/ai-openai/OpenAiClient";
 import * as OpenAiLanguageModel from "@effect/ai-openai/OpenAiLanguageModel";
 import * as AiError from "@effect/ai/AiError";
 import * as AiLanguageModel from "@effect/ai/AiLanguageModel";
-import { FetchHttpClient } from "@effect/platform";
-import { Config, Context, Effect, Layer } from "effect";
+import { HttpClient, HttpClientRequest } from "@effect/platform";
+import { Config, ConfigError, Context, Data, Effect, Layer } from "effect";
 import { ClassificationResult, ModelEnum, ModelOutputSchema } from "../types";
+
+// Custom errors for the service
+class UnsupportedModelError extends Data.TaggedError("UnsupportedModelError")<{
+  readonly model: string;
+}> {}
+
+export class UnclassifiedMemoryError extends Data.TaggedError("UnclassifiedMemoryError")<{
+  readonly model: string;
+  readonly reasoning: string;
+}> {}
 
 // Service Contract
 class MemoryClassificationContract extends Context.Tag("MemoryClassificationService")<
@@ -13,12 +28,13 @@ class MemoryClassificationContract extends Context.Tag("MemoryClassificationServ
     readonly classify: (
       model: ModelEnum,
       content: string
-    ) => Effect.Effect<ClassificationResult, AiError.AiError, never>;
+    ) => Effect.Effect<
+      ClassificationResult,
+      UnsupportedModelError | UnclassifiedMemoryError | AiError.AiError | ConfigError.ConfigError,
+      HttpClient.HttpClient
+    >;
   }
 >() {}
-
-// Configuration for OpenRouter integration
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 // Classification prompt template for structured output
 const getClassificationPrompt = (content: string) => `
@@ -38,23 +54,37 @@ Classify this memory and provide your confidence level and reasoning.
 // Helper function to get the appropriate model layer
 const getModelLayer = (
   model: ModelEnum
-): Layer.Layer<AiLanguageModel.AiLanguageModel, never, OpenAiClient.OpenAiClient> => {
+): Effect.Effect<
+  Layer.Layer<AiLanguageModel.AiLanguageModel, never, OpenAiClient.OpenAiClient>,
+  UnsupportedModelError,
+  never
+> => {
   switch (model) {
     case ModelEnum.MODEL1:
-      return LanguageModel1Layer;
+      return Effect.succeed(LanguageModel1Layer);
     case ModelEnum.MODEL2:
-      return LanguageModel2Layer;
+      return Effect.succeed(LanguageModel2Layer);
     case ModelEnum.MODEL3:
-      return LanguageMode3lLayer;
+      return Effect.succeed(LanguageModel3Layer);
     default:
-      throw new Error(`Unsupported model: ${model}`);
+      return Effect.fail(new UnsupportedModelError({ model }));
   }
 };
 
 // Create OpenAI client layer for OpenRouter using layerConfig
 const ClientLayer = OpenAiClient.layerConfig({
-  apiUrl: Config.succeed(OPENROUTER_BASE_URL),
-  apiKey: Config.redacted("OPENAI_API_KEY")
+  apiUrl: Config.string("OPENAI_BASE_URL"),
+  apiKey: Config.redacted("OPENAI_API_KEY"),
+  transformClient: Config.succeed((client: HttpClient.HttpClient) =>
+    client.pipe(
+      HttpClient.mapRequest((request: HttpClientRequest.HttpClientRequest) =>
+        request.pipe(
+          HttpClientRequest.setHeader("HTTP-Referer", "https://thesobercoder.in"),
+          HttpClientRequest.setHeader("X-Title", "Memory Manager")
+        )
+      )
+    )
+  )
 });
 
 // Create language model layers for all three models
@@ -69,25 +99,32 @@ const LanguageModel1Layer = OpenAiLanguageModel.layer({
 const LanguageModel2Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL2,
   config: {
-    max_tokens: 150,
+    max_tokens: 500,
     temperature: 0.1
   }
 });
 
-const LanguageMode3lLayer = OpenAiLanguageModel.layer({
+const LanguageModel3Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL3,
   config: {
-    max_tokens: 150,
+    max_tokens: 500,
     temperature: 0.1
   }
 });
 
 // Service Implementation
 const memoryClassificationLive = {
-  classify: (model: ModelEnum, content: string): Effect.Effect<ClassificationResult, AiError.AiError, never> =>
+  classify: (
+    model: ModelEnum,
+    content: string
+  ): Effect.Effect<
+    ClassificationResult,
+    UnsupportedModelError | UnclassifiedMemoryError | AiError.AiError | ConfigError.ConfigError,
+    HttpClient.HttpClient
+  > =>
     Effect.gen(function*() {
       const prompt = getClassificationPrompt(content);
-      const modelLayer = getModelLayer(model);
+      const modelLayer = yield* getModelLayer(model);
 
       const result = yield* AiLanguageModel.generateObject({
         prompt,
@@ -95,31 +132,29 @@ const memoryClassificationLive = {
       }).pipe(
         Effect.provide(modelLayer),
         Effect.provide(ClientLayer),
-        Effect.provide(FetchHttpClient.layer),
-        Effect.map((response) => {
+        Effect.flatMap((response) => {
           // Extract structured data from response.value
           const structuredData = response.value;
 
-          return new ClassificationResult({
-            modelName: model,
-            classification: structuredData.classification,
-            confidence: structuredData.confidence,
-            reasoning: structuredData.reasoning,
-            status: "success"
-          });
-        }),
-        Effect.catchAll((error) =>
-          Effect.succeed(
+          // Handle unclassified results as specific errors
+          if (structuredData.classification === "unclassified") {
+            return Effect.fail(
+              new UnclassifiedMemoryError({
+                model,
+                reasoning: structuredData.reasoning
+              })
+            );
+          }
+
+          return Effect.succeed(
             new ClassificationResult({
               modelName: model,
-              classification: "unclassified",
-              confidence: 0.1,
-              reasoning: "Model call failed",
-              status: "failed",
-              error: String(error)
+              classification: structuredData.classification,
+              confidence: structuredData.confidence,
+              reasoning: structuredData.reasoning
             })
-          )
-        )
+          );
+        })
       );
 
       return result;

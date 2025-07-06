@@ -71,17 +71,22 @@ export const ModelOutputSchema = Schema.Struct({
   reasoning: Schema.String
 });
 
-// Result from a single model classification
+// Result from a single model classification (success only - failures are errors)
 export class ClassificationResult extends Schema.Class<ClassificationResult>("ClassificationResult")({
   modelName: Schema.String,
   classification: Schema.Union(
     Schema.Literal("transient"),
-    Schema.Literal("long-term"),
-    Schema.Literal("unclassified")
+    Schema.Literal("long-term")
   ),
   confidence: Schema.Number.pipe(Schema.clamp(0, 1)),
-  reasoning: Schema.String,
+  reasoning: Schema.String
+}) {}
+
+// Attempt result represents either a successful classification or a failure
+export class ClassificationAttempt extends Schema.Class<ClassificationAttempt>("ClassificationAttempt")({
+  modelName: Schema.String,
   status: Schema.Union(Schema.Literal("success"), Schema.Literal("failed")),
+  result: Schema.optional(Schema.instanceOf(ClassificationResult)),
   error: Schema.optional(Schema.String)
 }) {}
 
@@ -93,7 +98,7 @@ export class ConsensusResult extends Schema.Class<ConsensusResult>("ConsensusRes
     Schema.Literal("uncertain")
   ),
   confidence: Schema.Number.pipe(Schema.clamp(0, 1)),
-  individualResults: Schema.Array(Schema.instanceOf(ClassificationResult)),
+  individualResults: Schema.Array(Schema.instanceOf(ClassificationAttempt)),
   successfulModels: Schema.Number,
   failedModels: Schema.Number
 }) {}

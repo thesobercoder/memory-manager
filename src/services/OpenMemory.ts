@@ -1,3 +1,7 @@
+/**
+ * OpenMemory API integration service for retrieving and filtering memory data.
+ * Handles authentication, API communication, and response parsing.
+ */
 import { HttpBody, HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Config, ConfigError, Context, Effect, ParseResult } from "effect";
 import { OpenMemoryFilterRequest, OpenMemoryFilterResponse } from "../types";
@@ -22,7 +26,7 @@ const openMemoryLive = {
     Effect.gen(function*() {
       const httpClient = yield* HttpClient.HttpClient;
       const bearerToken = yield* Config.redacted("OPENMEMORY_BEARER_TOKEN");
-      const baseUrl = "https://api.openmemory.dev/api/v1";
+      const baseUrl = yield* Config.string("OPENMEMORY_BASE_URL");
 
       const defaultRequest = OpenMemoryFilterRequest.default();
 
