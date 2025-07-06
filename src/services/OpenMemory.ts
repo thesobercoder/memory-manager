@@ -60,8 +60,9 @@ const openMemoryLive = {
       const bearerToken = yield* Config.redacted("OPENMEMORY_BEARER_TOKEN");
       const baseUrl = yield* Config.string("OPENMEMORY_BASE_URL");
 
-      const data = yield* HttpClientRequest.del(`${baseUrl}/api/v1/memories`).pipe(
+      const data = yield* HttpClientRequest.del(`${baseUrl}/memories/`).pipe(
         HttpClientRequest.bearerToken(bearerToken),
+        HttpClientRequest.acceptJson,
         HttpClientRequest.setHeader("Content-Type", "application/json"),
         HttpClientRequest.bodyJson(request),
         Effect.flatMap(httpClient.execute),
