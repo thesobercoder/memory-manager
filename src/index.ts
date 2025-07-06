@@ -6,6 +6,32 @@ import { MemoryClassification } from "./services/MemoryClassification";
 import { OpenMemory } from "./services/OpenMemory";
 import { ClassificationAttempt, ModelEnum, OpenMemoryFilterResponse } from "./types";
 
+// Helper function to classify content with a specific model and create a ClassificationAttempt
+const classifyAndCreateAttempt = (
+  memoryClassificationService: typeof MemoryClassification.Instance,
+  model: ModelEnum,
+  content: string
+) => {
+  return memoryClassificationService.classify(model, content).pipe(
+    Effect.map((result) =>
+      new ClassificationAttempt({
+        modelName: model,
+        status: "success",
+        result: result
+      })
+    ),
+    Effect.catchAll((error) =>
+      Effect.succeed(
+        new ClassificationAttempt({
+          modelName: model,
+          status: "failed",
+          error: error.message
+        })
+      )
+    )
+  );
+};
+
 const program = Effect.gen(function*() {
   yield* Effect.log("Fetching Data from OpenMemory...");
 
@@ -33,60 +59,9 @@ const program = Effect.gen(function*() {
 
       // Call all three models in parallel and convert to ClassificationAttempt objects
       const classificationAttempts = yield* Effect.all([
-        memoryClassificationService.classify(ModelEnum.MODEL1, memory.content).pipe(
-          Effect.map((result) =>
-            new ClassificationAttempt({
-              modelName: ModelEnum.MODEL1,
-              status: "success",
-              result: result
-            })
-          ),
-          Effect.catchAll((error) =>
-            Effect.succeed(
-              new ClassificationAttempt({
-                modelName: ModelEnum.MODEL1,
-                status: "failed",
-                error: String(error)
-              })
-            )
-          )
-        ),
-        memoryClassificationService.classify(ModelEnum.MODEL2, memory.content).pipe(
-          Effect.map((result) =>
-            new ClassificationAttempt({
-              modelName: ModelEnum.MODEL2,
-              status: "success",
-              result: result
-            })
-          ),
-          Effect.catchAll((error) =>
-            Effect.succeed(
-              new ClassificationAttempt({
-                modelName: ModelEnum.MODEL2,
-                status: "failed",
-                error: String(error)
-              })
-            )
-          )
-        ),
-        memoryClassificationService.classify(ModelEnum.MODEL3, memory.content).pipe(
-          Effect.map((result) =>
-            new ClassificationAttempt({
-              modelName: ModelEnum.MODEL3,
-              status: "success",
-              result: result
-            })
-          ),
-          Effect.catchAll((error) =>
-            Effect.succeed(
-              new ClassificationAttempt({
-                modelName: ModelEnum.MODEL3,
-                status: "failed",
-                error: String(error)
-              })
-            )
-          )
-        )
+        classifyAndCreateAttempt(memoryClassificationService, ModelEnum.MODEL1, memory.content),
+        classifyAndCreateAttempt(memoryClassificationService, ModelEnum.MODEL2, memory.content),
+        classifyAndCreateAttempt(memoryClassificationService, ModelEnum.MODEL3, memory.content)
       ]);
 
       // Log individual model results for debugging
@@ -115,16 +90,7 @@ const program = Effect.gen(function*() {
           (consensus.confidence * 100).toFixed(1)
         }% consensus, ${consensus.successfulModels}/${consensus.successfulModels + consensus.failedModels} models)`
       );
-    }).pipe(
-      Effect.catchAll((error) =>
-        Effect.gen(function*() {
-          const truncatedContent = memory.content.length > 100
-            ? `${memory.content.substring(0, 100)}...`
-            : memory.content;
-          yield* Effect.logError(`❌ Failed to classify "${truncatedContent}": ${String(error)}`);
-        })
-      )
-    );
+    });
   }
 });
 
