@@ -32,7 +32,7 @@ const fetchAllMemories = (
       const result = yield* openMemoryService.getMemories(request).pipe(
         Effect.catchAll((error) =>
           Effect.gen(function*() {
-            yield* Effect.logError(`OpenMemory API Error on page ${currentPage}: ${String(error)}`);
+            yield* Effect.logError(`❌ OpenMemory API Error on page ${currentPage}: ${String(error)}`);
             return OpenMemoryFilterResponse.empty();
           })
         )
@@ -41,7 +41,7 @@ const fetchAllMemories = (
       allMemories.push(...result.items);
       totalPages = result.pages;
 
-      yield* Effect.log(`Fetched page ${currentPage}/${totalPages} with ${result.items.length} memories`);
+      yield* Effect.log(`📄 Fetched page ${currentPage}/${totalPages} with ${result.items.length} memories`);
 
       currentPage++;
     } while (currentPage <= totalPages);
@@ -77,7 +77,7 @@ const classifyAndCreateAttempt = (
 };
 
 const program = Effect.gen(function*() {
-  yield* Effect.log("Fetching Data from OpenMemory...");
+  yield* Effect.log("🚀 Fetching Data from OpenMemory...");
 
   const openMemoryService = yield* OpenMemory.Contract;
   const memoryClassificationService = yield* MemoryClassification.Contract;
@@ -85,7 +85,7 @@ const program = Effect.gen(function*() {
 
   // Fetch all memories from all pages
   const allMemories = yield* fetchAllMemories(openMemoryService);
-  yield* Effect.log(`Retrieved ${allMemories.length} total memories from all pages`);
+  yield* Effect.log(`📊 Retrieved ${allMemories.length} total memories from all pages`);
 
   // Classify each memory using the new separated architecture
   for (const memory of allMemories) {
