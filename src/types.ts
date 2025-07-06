@@ -56,8 +56,8 @@ export class MemoryClassificationResponse
 // Model enumeration for the refactored architecture
 export enum ModelEnum {
   MODEL1 = "google/gemini-2.5-flash",
-  MODEL2 = "deepseek/deepseek-chat-v3-0324",
-  MODEL3 = "openai/gpt-4o-mini"
+  MODEL2 = "x-ai/grok-3",
+  MODEL3 = "openai/gpt-4o"
 }
 
 // Schema for individual model output
