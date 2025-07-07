@@ -8,7 +8,7 @@ import * as OpenAiLanguageModel from "@effect/ai-openai/OpenAiLanguageModel";
 import * as AiError from "@effect/ai/AiError";
 import * as AiLanguageModel from "@effect/ai/AiLanguageModel";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
-import { Config, ConfigError, Context, Data, Effect, Layer } from "effect";
+import { Config, ConfigError, Data, Effect, Layer } from "effect";
 import { ClassificationResult, ModelEnum, ModelOutputSchema } from "../types";
 
 // Custom errors for the service
@@ -16,25 +16,10 @@ class UnsupportedModelError extends Data.TaggedError("UnsupportedModelError")<{
   readonly model: string;
 }> {}
 
-export class UnclassifiedMemoryError extends Data.TaggedError("UnclassifiedMemoryError")<{
+class UnclassifiedMemoryError extends Data.TaggedError("UnclassifiedMemoryError")<{
   readonly model: string;
   readonly reasoning: string;
 }> {}
-
-// Service Contract
-class MemoryClassificationContract extends Context.Tag("MemoryClassificationService")<
-  MemoryClassificationContract,
-  {
-    readonly classify: (
-      model: ModelEnum,
-      content: string
-    ) => Effect.Effect<
-      ClassificationResult,
-      UnsupportedModelError | UnclassifiedMemoryError | AiError.AiError | ConfigError.ConfigError,
-      HttpClient.HttpClient
-    >;
-  }
->() {}
 
 // Classification prompt template for structured output
 const getClassificationPrompt = (content: string) => `
@@ -112,57 +97,52 @@ const LanguageModel3Layer = OpenAiLanguageModel.layer({
   }
 });
 
-// Service Implementation
-const memoryClassificationLive = {
-  classify: (
-    model: ModelEnum,
-    content: string
-  ): Effect.Effect<
-    ClassificationResult,
-    UnsupportedModelError | UnclassifiedMemoryError | AiError.AiError | ConfigError.ConfigError,
-    HttpClient.HttpClient
-  > =>
-    Effect.gen(function*() {
-      const prompt = getClassificationPrompt(content);
-      const modelLayer = yield* getModelLayer(model);
+export class MemoryClassification extends Effect.Service<MemoryClassification>()("MemoryClassificationService", {
+  effect: Effect.succeed({
+    classify: (
+      model: ModelEnum,
+      content: string
+    ): Effect.Effect<
+      ClassificationResult,
+      UnsupportedModelError | UnclassifiedMemoryError | AiError.AiError | ConfigError.ConfigError,
+      HttpClient.HttpClient
+    > =>
+      Effect.gen(function*() {
+        const prompt = getClassificationPrompt(content);
+        const modelLayer = yield* getModelLayer(model);
 
-      const result = yield* AiLanguageModel.generateObject({
-        prompt,
-        schema: ModelOutputSchema
-      }).pipe(
-        Effect.provide(modelLayer),
-        Effect.provide(ClientLayer),
-        Effect.flatMap((response) => {
-          // Extract structured data from response.value
-          const structuredData = response.value;
+        const result = yield* AiLanguageModel.generateObject({
+          prompt,
+          schema: ModelOutputSchema
+        }).pipe(
+          Effect.provide(modelLayer),
+          Effect.provide(ClientLayer),
+          Effect.flatMap((response) => {
+            // Extract structured data from response.value
+            const structuredData = response.value;
 
-          // Handle unclassified results as specific errors
-          if (structuredData.classification === "unclassified") {
-            return Effect.fail(
-              new UnclassifiedMemoryError({
-                model,
+            // Handle unclassified results as specific errors
+            if (structuredData.classification === "unclassified") {
+              return Effect.fail(
+                new UnclassifiedMemoryError({
+                  model,
+                  reasoning: structuredData.reasoning
+                })
+              );
+            }
+
+            return Effect.succeed(
+              new ClassificationResult({
+                modelName: model,
+                classification: structuredData.classification,
+                confidence: structuredData.confidence,
                 reasoning: structuredData.reasoning
               })
             );
-          }
+          })
+        );
 
-          return Effect.succeed(
-            new ClassificationResult({
-              modelName: model,
-              classification: structuredData.classification,
-              confidence: structuredData.confidence,
-              reasoning: structuredData.reasoning
-            })
-          );
-        })
-      );
-
-      return result;
-    })
-};
-
-// Export Contract/Instance pattern
-export const MemoryClassification = {
-  Contract: MemoryClassificationContract,
-  Instance: memoryClassificationLive
-};
+        return result;
+      })
+  })
+}) {}

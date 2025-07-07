@@ -14,7 +14,7 @@ import {
 
 // Helper function to fetch all pages of memories
 const fetchAllMemories = (
-  openMemoryService: typeof OpenMemory.Instance
+  openMemoryService: OpenMemory
 ) => {
   return Effect.gen(function*() {
     const allMemories: Array<OpenMemoryFilterResponse["items"][number]> = [];
@@ -52,7 +52,7 @@ const fetchAllMemories = (
 
 // Helper function to classify content with a specific model and create a ClassificationAttempt
 const classifyAndCreateAttempt = (
-  memoryClassificationService: typeof MemoryClassification.Instance,
+  memoryClassificationService: MemoryClassification,
   model: ModelEnum,
   content: string
 ) => {
@@ -79,9 +79,9 @@ const classifyAndCreateAttempt = (
 const program = Effect.gen(function*() {
   yield* Effect.log("🚀 Fetching Data from OpenMemory...");
 
-  const openMemoryService = yield* OpenMemory.Contract;
-  const memoryClassificationService = yield* MemoryClassification.Contract;
-  const consensusService = yield* ConsensusService.Contract;
+  const openMemoryService = yield* OpenMemory;
+  const memoryClassificationService = yield* MemoryClassification;
+  const consensusService = yield* ConsensusService;
 
   // Fetch all memories from all pages
   const allMemories = yield* fetchAllMemories(openMemoryService);
@@ -147,9 +147,9 @@ const program = Effect.gen(function*() {
 });
 
 program.pipe(
-  Effect.provideService(OpenMemory.Contract, OpenMemory.Instance),
-  Effect.provideService(MemoryClassification.Contract, MemoryClassification.Instance),
-  Effect.provideService(ConsensusService.Contract, ConsensusService.Instance),
+  Effect.provide(OpenMemory.Default),
+  Effect.provide(MemoryClassification.Default),
+  Effect.provide(ConsensusService.Default),
   Effect.provide(BunContext.layer),
   Effect.provide(FetchHttpClient.layer),
   BunRuntime.runMain

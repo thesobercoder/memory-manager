@@ -2,7 +2,7 @@
  * Consensus calculation service for aggregating multiple AI model classification results.
  * Implements majority voting with confidence scoring based on average individual model confidence.
  */
-import { Context, Effect } from "effect";
+import { Effect } from "effect";
 import { ClassificationAttempt, ConsensusResult } from "../types";
 
 type FinalClassification = ConsensusResult["finalClassification"];
@@ -42,58 +42,43 @@ const calculateConsensusResult = (
   };
 };
 
-// Service Contract
-class ConsensusServiceContract extends Context.Tag("ConsensusService")<
-  ConsensusServiceContract,
-  {
-    readonly calculateConsensus: (
-      attempts: ClassificationAttempt[]
-    ) => Effect.Effect<ConsensusResult, never, never>;
-  }
->() {}
+export class ConsensusService extends Effect.Service<ConsensusService>()("ConsensusService", {
+  effect: Effect.succeed({
+    calculateConsensus: (attempts: ClassificationAttempt[]) =>
+      Effect.sync(() => {
+        // Filter successful attempts and extract their results
+        const successfulAttempts = attempts.filter((attempt) => attempt.status === "success");
+        const failedAttempts = attempts.filter((attempt) => attempt.status === "failed");
 
-// Service Implementation
-const consensusServiceLive = {
-  calculateConsensus: (attempts: ClassificationAttempt[]) =>
-    Effect.sync(() => {
-      // Filter successful attempts and extract their results
-      const successfulAttempts = attempts.filter((attempt) => attempt.status === "success");
-      const failedAttempts = attempts.filter((attempt) => attempt.status === "failed");
+        // Require at least 2 successful results for consensus
+        if (successfulAttempts.length < 2) {
+          return new ConsensusResult({
+            finalClassification: "uncertain",
+            confidence: 0.1,
+            individualResults: attempts,
+            successfulModels: successfulAttempts.length,
+            failedModels: failedAttempts.length
+          });
+        }
 
-      // Require at least 2 successful results for consensus
-      if (successfulAttempts.length < 2) {
+        // Count votes for each classification from successful results
+        const transientVotes = successfulAttempts.filter(
+          (attempt) => attempt.result?.classification === "transient"
+        );
+        const longTermVotes = successfulAttempts.filter(
+          (attempt) => attempt.result?.classification === "long-term"
+        );
+
+        // Calculate consensus using functional approach
+        const result = calculateConsensusResult(transientVotes, longTermVotes, successfulAttempts);
+
         return new ConsensusResult({
-          finalClassification: "uncertain",
-          confidence: 0.1,
+          finalClassification: result.classification,
+          confidence: result.confidence,
           individualResults: attempts,
           successfulModels: successfulAttempts.length,
           failedModels: failedAttempts.length
         });
-      }
-
-      // Count votes for each classification from successful results
-      const transientVotes = successfulAttempts.filter(
-        (attempt) => attempt.result?.classification === "transient"
-      );
-      const longTermVotes = successfulAttempts.filter(
-        (attempt) => attempt.result?.classification === "long-term"
-      );
-
-      // Calculate consensus using functional approach
-      const result = calculateConsensusResult(transientVotes, longTermVotes, successfulAttempts);
-
-      return new ConsensusResult({
-        finalClassification: result.classification,
-        confidence: result.confidence,
-        individualResults: attempts,
-        successfulModels: successfulAttempts.length,
-        failedModels: failedAttempts.length
-      });
-    })
-};
-
-// Export Contract/Instance pattern
-export const ConsensusService = {
-  Contract: ConsensusServiceContract,
-  Instance: consensusServiceLive
-};
+      })
+  })
+}) {}
