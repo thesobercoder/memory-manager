@@ -1,21 +1,21 @@
 {
   "name": "effect-app",
   "dependencies": {
-    "@effect/ai": "^0.21.9",
-    "@effect/ai-openai": "^0.24.9",
-    "@effect/platform": "^0.87.6",
-    "@effect/platform-bun": "^0.72.10",
+    "@effect/ai": "^0.21.15",
+    "@effect/ai-openai": "^0.24.15",
+    "@effect/platform": "^0.87.11",
+    "@effect/platform-bun": "^0.72.15",
     "effect": "^3.16.12"
   },
   "devDependencies": {
     "@effect/eslint-plugin": "^0.3.2",
-    "@effect/language-service": "^0.23.5",
+    "@effect/language-service": "^0.24.0",
     "@eslint/js": "^9.30.1",
     "@types/bun": "latest",
     "dprint": "^0.50.1",
     "eslint": "^9.30.1",
     "syncpack": "^13.0.4",
-    "typescript-eslint": "^8.35.1"
+    "typescript-eslint": "^8.36.0"
   },
   "module": "index.ts",
   "peerDependencies": {
