@@ -7,6 +7,7 @@ An intelligent memory management system **powered by Effect-TS** that automatica
 Memory Manager is built from the ground up with **Effect-TS at its heart** - leveraging functional programming, type safety, and composable effects to create a robust and reliable memory curation system. It integrates with the OpenMemory API to fetch, classify, and automatically delete transient memories while preserving valuable long-term information using a sophisticated multi-model consensus approach with advanced prompt engineering.
 
 **Effect-TS enables:**
+
 - **Composable Effects**: Clean separation of concerns with dependency injection
 - **Type-Safe Error Handling**: Comprehensive error recovery without exceptions
 - **Resource Management**: Automatic cleanup and resource safety
@@ -16,7 +17,7 @@ Memory Manager is built from the ground up with **Effect-TS at its heart** - lev
 ## Features
 
 - **Effect-TS Foundation**: Built entirely on Effect-TS for functional programming, composable effects, and bulletproof error handling
-- **Multi-Model Classification**: Uses 3 different AI models (Gemini 2.5 Flash, Grok-3, GPT-4o) accessed through OpenRouter for robust memory classification
+- **Multi-Model Classification**: Uses 3 different AI models (google/gemini-2.5-flash, x-ai/grok-3, openai/gpt-4o) accessed through OpenRouter for robust memory classification
 - **Consensus-Based Decision Making**: Combines results from multiple models using Effect's parallel execution capabilities
 - **Intelligent Memory Curation**: Automatically deletes transient memories with high confidence while preserving long-term valuable information
 - **Advanced Prompt Engineering**: Sophisticated system prompts with detailed examples and classification criteria
@@ -49,9 +50,10 @@ The entire application flow is modeled as composable Effects, from memory fetchi
 
 ### Memory Classification Categories
 
-- **Transient**: Temporary information, reminders, time-sensitive data (automatically deleted)
-- **Long-term**: Important facts, insights, persistent references (preserved)
-- **Unclassified**: Ambiguous or unclear content (preserved by default)
+- **Transient**: Temporary information, reminders, time-sensitive data (automatically deleted when consensus is confident)
+- **Long-term**: Important facts, insights, persistent references (always preserved)
+- **Unclassified**: Ambiguous or unclear content (always preserved by default)
+- **Uncertain**: When models disagree or confidence is low (always preserved for safety)
 
 ## Getting Started
 
@@ -129,9 +131,9 @@ src/
 Effect-TS orchestrates the entire memory management pipeline through composable, type-safe effects:
 
 1. **Memory Fetching Effect**: Creates an Effect that retrieves all memories from OpenMemory API with automatic pagination and error recovery
-2. **Parallel Classification Effects**: Uses `Effect.all` to run 3 AI model classifications concurrently 
-3. **Consensus Calculation Effect**: Combines classification results using confidence-weighted consensus
-4. **Conditional Deletion Effect**: Safely deletes transient memories based on consensus, with comprehensive error handling
+2. **Parallel Classification Effects**: Uses `Effect.all` to run 3 AI model classifications concurrently, each returning either success or typed failure
+3. **Consensus Calculation Effect**: Combines classification results using sophisticated logic that handles partial failures and disagreements
+4. **Conditional Deletion Effect**: Only deletes memories with confident transient consensus, preserving everything else
 5. **Logging Effects**: Structured logging throughout the pipeline for full observability
 
 ### Effect Benefits in Action
@@ -159,20 +161,25 @@ The system uses sophisticated prompt engineering with:
 The application uses three models accessed through OpenRouter for robust classification:
 
 - **Gemini 2.5 Flash**: Fast, efficient classification
-- **Grok-3**: Advanced reasoning capabilities  
+- **Grok-3**: Advanced reasoning capabilities
 - **GPT-4o**: Balanced performance and accuracy
 
 **OpenRouter Benefits:**
+
 - Single API key for multiple AI providers
 - Simplified authentication and billing
 - Automatic failover and load balancing
 - Cost optimization across providers
 
-### Confidence Thresholds
+### Consensus Decision Making
 
-- **High Confidence Deletion**: ≥70% consensus for transient memories
-- **Preservation**: <70% consensus or long-term classification
-- **Safety First**: Uncertain classifications are always preserved
+The system uses sophisticated consensus logic with multiple failure handling scenarios:
+
+- **Confident Transient**: High agreement between successful models → **Deletion**
+- **Long-term Classification**: Any model classifies as long-term → **Preservation**
+- **Low Confidence/Disagreement**: Models disagree or low confidence → **Uncertain classification → Preservation**
+- **Model Failures**: If models fail to classify → **Preservation**
+- **Safety First**: When in doubt, always preserve the memory
 
 ## API Integration
 
@@ -192,6 +199,7 @@ The application uses three models accessed through OpenRouter for robust classif
 **Effect Schema is central to our type safety**, providing runtime validation and compile-time types for all data structures and API interactions. Every service is modeled as an Effect Service with full dependency injection, and all operations return properly typed Effects with explicit error handling.
 
 **Effect-TS provides:**
+
 - **Runtime Type Checking**: All API responses validated against schemas
 - **Compile-time Safety**: TypeScript integration with Effect types
 - **Tagged Errors**: Custom error types with full type information
@@ -219,7 +227,7 @@ The application uses three models accessed through OpenRouter for robust classif
 
 ## Author
 
-**Soham Dasgupta**  
+**Soham Dasgupta**\
 Email: soham@thesobercoder.in
 
 ## License
