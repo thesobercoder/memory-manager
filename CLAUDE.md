@@ -1,4 +1,4 @@
-# Effect-App Memory Manager - CLAUDE CODE REVIEW SUMMARY
+# Memory Manager
 
 **Project Type**: Production-ready Effect-TS application for intelligent memory management
 **Purpose**: Auto-classifies and curates long-term vs transient memories using AI models
@@ -6,7 +6,7 @@
 
 ## 🧠 Core Purpose
 
-Effect-App is a sophisticated memory management system that:
+Memory Manager is a sophisticated memory management system that:
 
 - **Retrieves memories** via OpenMemory API
 - **Classifies content** using 3 distinct AI models (Gemini, Grok-3, GPT-4o)
