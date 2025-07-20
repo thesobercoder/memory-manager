@@ -3,24 +3,24 @@ import { readFileSync } from "node:fs";
 const VALIDATION_RULES = [
   {
     command: "npm",
-    message: "Use 'bun' instead of 'npm' for this project"
+    message: "Use 'bun' instead of 'npm' for this project",
   },
   {
     command: "npx",
-    message: "Use 'bunx' instead of 'npx' for this project"
+    message: "Use 'bunx' instead of 'npx' for this project",
   },
   {
     command: "pnpm",
-    message: "Use 'bun' instead of 'pnpm' for this project"
+    message: "Use 'bun' instead of 'pnpm' for this project",
   },
   {
     command: "pnpx",
-    message: "Use 'bunx' instead of 'pnpx' for this project"
+    message: "Use 'bunx' instead of 'pnpx' for this project",
   },
   {
     command: "yarn",
-    message: "Use 'bun' instead of 'yarn' for this project"
-  }
+    message: "Use 'bun' instead of 'yarn' for this project",
+  },
 ];
 
 function validateCommand(command) {

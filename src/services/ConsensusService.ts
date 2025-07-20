@@ -19,66 +19,77 @@ const averageConfidence = (votes: ClassificationAttempt[]): number => {
 const calculateConsensusResult = (
   transientVotes: ClassificationAttempt[],
   longTermVotes: ClassificationAttempt[],
-  allSuccessful: ClassificationAttempt[]
-): { classification: FinalClassification; confidence: number; } => {
+  allSuccessful: ClassificationAttempt[],
+): { classification: FinalClassification; confidence: number } => {
   if (transientVotes.length > longTermVotes.length) {
     return {
       classification: "transient",
-      confidence: averageConfidence(transientVotes)
+      confidence: averageConfidence(transientVotes),
     };
   }
 
   if (longTermVotes.length > transientVotes.length) {
     return {
       classification: "long-term",
-      confidence: averageConfidence(longTermVotes)
+      confidence: averageConfidence(longTermVotes),
     };
   }
 
   // Tie case
   return {
     classification: "uncertain",
-    confidence: averageConfidence(allSuccessful) || 0.5
+    confidence: averageConfidence(allSuccessful) || 0.5,
   };
 };
 
-export class ConsensusService extends Effect.Service<ConsensusService>()("ConsensusService", {
-  effect: Effect.succeed({
-    calculateConsensus: (attempts: ClassificationAttempt[]) =>
-      Effect.sync(() => {
-        // Filter successful attempts and extract their results
-        const successfulAttempts = attempts.filter((attempt) => attempt.status === "success");
-        const failedAttempts = attempts.filter((attempt) => attempt.status === "failed");
+export class ConsensusService extends Effect.Service<ConsensusService>()(
+  "ConsensusService",
+  {
+    effect: Effect.succeed({
+      calculateConsensus: (attempts: ClassificationAttempt[]) =>
+        Effect.sync(() => {
+          // Filter successful attempts and extract their results
+          const successfulAttempts = attempts.filter(
+            (attempt) => attempt.status === "success",
+          );
+          const failedAttempts = attempts.filter(
+            (attempt) => attempt.status === "failed",
+          );
 
-        // Require at least 2 successful results for consensus
-        if (successfulAttempts.length < 2) {
+          // Require at least 2 successful results for consensus
+          if (successfulAttempts.length < 2) {
+            return new ConsensusResult({
+              finalClassification: "uncertain",
+              confidence: 0.1,
+              individualResults: attempts,
+              successfulModels: successfulAttempts.length,
+              failedModels: failedAttempts.length,
+            });
+          }
+
+          // Count votes for each classification from successful results
+          const transientVotes = successfulAttempts.filter(
+            (attempt) => attempt.result?.classification === "transient",
+          );
+          const longTermVotes = successfulAttempts.filter(
+            (attempt) => attempt.result?.classification === "long-term",
+          );
+
+          // Calculate consensus using functional approach
+          const result = calculateConsensusResult(
+            transientVotes,
+            longTermVotes,
+            successfulAttempts,
+          );
+
           return new ConsensusResult({
-            finalClassification: "uncertain",
-            confidence: 0.1,
+            finalClassification: result.classification,
+            confidence: result.confidence,
             individualResults: attempts,
             successfulModels: successfulAttempts.length,
-            failedModels: failedAttempts.length
+            failedModels: failedAttempts.length,
           });
-        }
-
-        // Count votes for each classification from successful results
-        const transientVotes = successfulAttempts.filter(
-          (attempt) => attempt.result?.classification === "transient"
-        );
-        const longTermVotes = successfulAttempts.filter(
-          (attempt) => attempt.result?.classification === "long-term"
-        );
-
-        // Calculate consensus using functional approach
-        const result = calculateConsensusResult(transientVotes, longTermVotes, successfulAttempts);
-
-        return new ConsensusResult({
-          finalClassification: result.classification,
-          confidence: result.confidence,
-          individualResults: attempts,
-          successfulModels: successfulAttempts.length,
-          failedModels: failedAttempts.length
-        });
-      })
-  })
-}) {}
+        }),
+    }),
+  },
+) {}

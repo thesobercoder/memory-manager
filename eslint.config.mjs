@@ -6,28 +6,14 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: ["dist/**", "node_modules/**", ".claude/**"]
+    ignores: ["dist/**", "node_modules/**", ".claude/**"],
   },
   {
     plugins: {
-      "@effect": effectPlugin
+      "@effect": effectPlugin,
     },
     rules: {
-      "@effect/dprint": [
-        "warn",
-        {
-          config: {
-            indentWidth: 2,
-            lineWidth: 120,
-            semiColons: "always",
-            quoteStyle: "alwaysDouble",
-            trailingCommas: "never",
-            operatorPosition: "maintain",
-            "arrowFunction.useParentheses": "force"
-          }
-        }
-      ],
-      "@effect/no-import-from-barrel-package": "error"
-    }
-  }
+      "@effect/no-import-from-barrel-package": "error",
+    },
+  },
 );

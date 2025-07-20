@@ -16,7 +16,9 @@ class UnsupportedModelError extends Data.TaggedError("UnsupportedModelError")<{
   readonly model: string;
 }> {}
 
-class UnclassifiedMemoryError extends Data.TaggedError("UnclassifiedMemoryError")<{
+class UnclassifiedMemoryError extends Data.TaggedError(
+  "UnclassifiedMemoryError",
+)<{
   readonly model: string;
   readonly reasoning: string;
 }> {}
@@ -102,9 +104,13 @@ const getClassificationPrompt = (content: string) => getUserPrompt(content);
 
 // Helper function to get the appropriate model layer
 const getModelLayer = (
-  model: ModelEnum
+  model: ModelEnum,
 ): Effect.Effect<
-  Layer.Layer<AiLanguageModel.AiLanguageModel, never, OpenAiClient.OpenAiClient>,
+  Layer.Layer<
+    AiLanguageModel.AiLanguageModel,
+    never,
+    OpenAiClient.OpenAiClient
+  >,
   UnsupportedModelError,
   never
 > => {
@@ -128,12 +134,15 @@ const ClientLayer = OpenAiClient.layerConfig({
     client.pipe(
       HttpClient.mapRequest((request: HttpClientRequest.HttpClientRequest) =>
         request.pipe(
-          HttpClientRequest.setHeader("HTTP-Referer", "https://thesobercoder.in"),
-          HttpClientRequest.setHeader("X-Title", "Memory Manager")
-        )
-      )
-    )
-  )
+          HttpClientRequest.setHeader(
+            "HTTP-Referer",
+            "https://thesobercoder.in",
+          ),
+          HttpClientRequest.setHeader("X-Title", "Memory Manager"),
+        ),
+      ),
+    ),
+  ),
 });
 
 // Create language model layers for all three models
@@ -141,73 +150,79 @@ const LanguageModel1Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL1,
   config: {
     max_tokens: 500,
-    temperature: 0.1
-  }
+    temperature: 0.1,
+  },
 });
 
 const LanguageModel2Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL2,
   config: {
     max_tokens: 500,
-    temperature: 0.1
-  }
+    temperature: 0.1,
+  },
 });
 
 const LanguageModel3Layer = OpenAiLanguageModel.layer({
   model: ModelEnum.MODEL3,
   config: {
     max_tokens: 500,
-    temperature: 0.1
-  }
+    temperature: 0.1,
+  },
 });
 
-export class MemoryClassification extends Effect.Service<MemoryClassification>()("MemoryClassificationService", {
-  effect: Effect.succeed({
-    classify: (
-      model: ModelEnum,
-      content: string
-    ): Effect.Effect<
-      ClassificationResult,
-      UnsupportedModelError | UnclassifiedMemoryError | AiError.AiError | ConfigError.ConfigError,
-      HttpClient.HttpClient
-    > =>
-      Effect.gen(function*() {
-        const prompt = getClassificationPrompt(content);
-        const modelLayer = yield* getModelLayer(model);
+export class MemoryClassification extends Effect.Service<MemoryClassification>()(
+  "MemoryClassificationService",
+  {
+    effect: Effect.succeed({
+      classify: (
+        model: ModelEnum,
+        content: string,
+      ): Effect.Effect<
+        ClassificationResult,
+        | UnsupportedModelError
+        | UnclassifiedMemoryError
+        | AiError.AiError
+        | ConfigError.ConfigError,
+        HttpClient.HttpClient
+      > =>
+        Effect.gen(function* () {
+          const prompt = getClassificationPrompt(content);
+          const modelLayer = yield* getModelLayer(model);
 
-        const result = yield* AiLanguageModel.generateObject({
-          prompt,
-          system: getSystemPrompt(),
-          schema: ModelOutputSchema
-        }).pipe(
-          Effect.provide(modelLayer),
-          Effect.provide(ClientLayer),
-          Effect.flatMap((response) => {
-            // Extract structured data from response.value
-            const structuredData = response.value;
+          const result = yield* AiLanguageModel.generateObject({
+            prompt,
+            system: getSystemPrompt(),
+            schema: ModelOutputSchema,
+          }).pipe(
+            Effect.provide(modelLayer),
+            Effect.provide(ClientLayer),
+            Effect.flatMap((response) => {
+              // Extract structured data from response.value
+              const structuredData = response.value;
 
-            // Handle unclassified results as specific errors
-            if (structuredData.classification === "unclassified") {
-              return Effect.fail(
-                new UnclassifiedMemoryError({
-                  model,
-                  reasoning: structuredData.reasoning
-                })
+              // Handle unclassified results as specific errors
+              if (structuredData.classification === "unclassified") {
+                return Effect.fail(
+                  new UnclassifiedMemoryError({
+                    model,
+                    reasoning: structuredData.reasoning,
+                  }),
+                );
+              }
+
+              return Effect.succeed(
+                new ClassificationResult({
+                  modelName: model,
+                  classification: structuredData.classification,
+                  confidence: structuredData.confidence,
+                  reasoning: structuredData.reasoning,
+                }),
               );
-            }
+            }),
+          );
 
-            return Effect.succeed(
-              new ClassificationResult({
-                modelName: model,
-                classification: structuredData.classification,
-                confidence: structuredData.confidence,
-                reasoning: structuredData.reasoning
-              })
-            );
-          })
-        );
-
-        return result;
-      })
-  })
-}) {}
+          return result;
+        }),
+    }),
+  },
+) {}
